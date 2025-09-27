@@ -32,10 +32,12 @@ const RecordMessageScreen: React.FC<RecordMessageScreenProps> = ({ navigation, r
   const [isPlaying, setIsPlaying] = useState(false);
   const [recordingPath, setRecordingPath] = useState<string | null>(null);
   const [recordingDuration, setRecordingDuration] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [pulseAnimation] = useState(new Animated.Value(1));
 
   const audioRecorder = useRef<AudioRecorder>(new AudioRecorder());
-  const recordingTimer = useRef<NodeJS.Timeout | null>(null);
+  const recordingTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (isRecording) {
@@ -169,7 +171,7 @@ const RecordMessageScreen: React.FC<RecordMessageScreenProps> = ({ navigation, r
     );
   };
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     if (!recordingPath) {
       Alert.alert('録音してください', 'まず音声を録音してください。');
       return;
@@ -182,19 +184,61 @@ const RecordMessageScreen: React.FC<RecordMessageScreenProps> = ({ navigation, r
         { text: 'キャンセル', style: 'cancel' },
         {
           text: '送信',
-          onPress: () => {
-            // 実際の送信処理をここに実装
-            console.log('メッセージ送信');
-            Alert.alert('送信完了', 'メッセージを家族に送信しました！', [
-              {
-                text: 'OK',
-                onPress: () => navigation.navigate('Home'),
-              },
-            ]);
+          onPress: async () => {
+            await uploadAndSendMessage();
           },
         },
       ]
     );
+  };
+
+  const uploadAndSendMessage = async () => {
+    if (!recordingPath) return;
+
+    try {
+      setIsUploading(true);
+      setUploadProgress(0);
+
+      // メッセージIDを生成
+      const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+      // 音声ファイルをFirebase Storageにアップロード
+      const audioUrl = await StorageService.uploadVoiceMessage(
+        messageId,
+        recordingPath,
+        (progress) => {
+          setUploadProgress(progress);
+        }
+      );
+
+      // メッセージデータを準備
+      const messageData = {
+        senderId: 'current_user_id', // 実際のユーザーIDに置き換える
+        senderName: 'Current User', // 実際のユーザー名に置き換える
+        audioUrl,
+        duration: recordingDuration,
+        question: selectedQuestion?.text || '',
+        greeting: feeling ? feelingLabels[feeling] : '',
+        receiverIds: ['family_member_1', 'family_member_2'], // 実際の家族メンバーIDに置き換える
+        listenedBy: [],
+      };
+
+      // Firestoreにメッセージを保存
+      await DatabaseService.createVoiceMessage(messageData);
+
+      setIsUploading(false);
+      Alert.alert('送信完了', 'メッセージを家族に送信しました！', [
+        {
+          text: 'OK',
+          onPress: () => navigation.navigate('Home'),
+        },
+      ]);
+
+    } catch (error) {
+      console.error('メッセージ送信エラー:', error);
+      setIsUploading(false);
+      Alert.alert('送信エラー', 'メッセージの送信に失敗しました。もう一度お試しください。');
+    }
   };
 
   const formatDuration = (seconds: number): string => {
@@ -284,12 +328,31 @@ const RecordMessageScreen: React.FC<RecordMessageScreenProps> = ({ navigation, r
         {recordingPath && (
           <View style={styles.sendArea}>
             <TouchableOpacity
-              style={styles.sendButton}
+              style={[styles.sendButton, isUploading && styles.sendButtonDisabled]}
               onPress={sendMessage}
+              disabled={isUploading}
               activeOpacity={0.8}
             >
-              <Text style={styles.sendButtonText}>📤 家族に送信する</Text>
+              <Text style={styles.sendButtonText}>
+                {isUploading ? '📤 送信中...' : '📤 家族に送信する'}
+              </Text>
             </TouchableOpacity>
+
+            {isUploading && (
+              <View style={styles.progressContainer}>
+                <View style={styles.progressBar}>
+                  <View
+                    style={[
+                      styles.progressFill,
+                      { width: `${uploadProgress}%` },
+                    ]}
+                  />
+                </View>
+                <Text style={styles.progressText}>
+                  {Math.round(uploadProgress)}% 完了
+                </Text>
+              </View>
+            )}
 
             <Text style={styles.sendHelpText}>
               💡 メッセージは家族全員に送信されます
@@ -429,10 +492,37 @@ const styles = StyleSheet.create({
     elevation: 6,
     marginBottom: 12,
   },
+  sendButtonDisabled: {
+    backgroundColor: '#95a5a6',
+    opacity: 0.7,
+  },
   sendButtonText: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#ffffff',
+  },
+  progressContainer: {
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  progressBar: {
+    width: '80%',
+    height: 8,
+    backgroundColor: '#ecf0f1',
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#3498db',
+    borderRadius: 4,
+  },
+  progressText: {
+    fontSize: 14,
+    color: '#2c3e50',
+    fontWeight: '600',
   },
   sendHelpText: {
     fontSize: 14,
