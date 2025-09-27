@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ひと言しつもんアプリ - デモ</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f8f9fa;
+            color: #2c3e50;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .screen {
+            display: none;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        .title {
+            font-size: 32px;
+            font-weight: bold;
+            text-align: center;
+            margin: 40px 0 8px;
+        }
+
+        .title-emphasis {
+            font-size: 28px;
+            font-weight: bold;
+            color: #3498db;
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .subtitle {
+            font-size: 16px;
+            color: #7f8c8d;
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .primary-button {
+            background-color: #3498db;
+            color: white;
+            padding: 24px;
+            border-radius: 16px;
+            text-align: center;
+            margin-bottom: 30px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+
+        .primary-button:hover {
+            transform: translateY(-2px);
+        }
+
+        .button-text {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .button-subtext {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        .family-section {
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 16px;
+        }
+
+        .family-row {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+        }
+
+        .family-member {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 25px;
+            background-color: #e8f4fd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 5px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #3498db;
+        }
+
+        .member-name {
+            font-size: 12px;
+        }
+
+        .question-button {
+            background-color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .question-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .feeling-label {
+            font-size: 14px;
+            color: #3498db;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .question-text {
+            font-size: 16px;
+            line-height: 1.5;
+        }
+
+        .back-button {
+            padding: 16px;
+            text-align: center;
+            cursor: pointer;
+        }
+
+        .back-button-text {
+            font-size: 16px;
+            color: #3498db;
+            font-weight: 500;
+        }
+
+        .question-display {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            margin: 20px 0 40px;
+        }
+
+        .record-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            min-height: 300px;
+        }
+
+        .record-button {
+            width: 120px;
+            height: 120px;
+            border-radius: 60px;
+            background-color: #e74c3c;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            transition: transform 0.2s;
+            font-size: 48px;
+        }
+
+        .record-button:hover {
+            transform: scale(1.05);
+        }
+
+        .record-button.recording {
+            background-color: #c0392b;
+            animation: pulse 1.6s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .record-text {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .recording-timer {
+            font-size: 32px;
+            font-weight: bold;
+            color: #e74c3c;
+            font-family: monospace;
+        }
+
+        .content {
+            padding-top: 40px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- ホーム画面 -->
+        <div id="home" class="screen active">
+            <div class="title">ひと言しつもん</div>
+            <div class="subtitle">家族の声を聞こう</div>
+
+            <div class="primary-button" onclick="showScreen('questions')">
+                <div class="button-text">💬 メッセージを送る</div>
+                <div class="button-subtext">今日はどんなことを聞いてみる？</div>
+            </div>
+
+            <div class="family-section">
+                <div class="section-title">家族メンバー</div>
+                <div class="family-row">
+                    <div class="family-member">
+                        <div class="avatar">お</div>
+                        <div class="member-name">お父さん</div>
+                    </div>
+                    <div class="family-member">
+                        <div class="avatar">お</div>
+                        <div class="member-name">お母さん</div>
+                    </div>
+                    <div class="family-member">
+                        <div class="avatar">長</div>
+                        <div class="member-name">長男</div>
+                    </div>
+                    <div class="family-member">
+                        <div class="avatar">次</div>
+                        <div class="member-name">次男</div>
+                    </div>
+                    <div class="family-member">
+                        <div class="avatar">お</div>
+                        <div class="member-name">おばあちゃん</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 質問選択画面 -->
+        <div id="questions" class="screen">
+            <div class="content">
+                <div class="title">今日はどんなことを</div>
+                <div class="title-emphasis">聞いてみたいですか？</div>
+
+                <div class="section-title">気持ちから質問を選ぶ</div>
+
+                <div class="question-button" onclick="selectQuestion('関心・興味を示したい', '今日はどんな予定があるの？')">
+                    <div class="feeling-label">🤔 関心・興味を示したい</div>
+                    <div class="question-text">今日はどんな予定があるの？</div>
+                </div>
+
+                <div class="question-button" onclick="selectQuestion('未来への希望を聞きたい', 'どんなことができたら嬉しい？')">
+                    <div class="feeling-label">✨ 未来への希望を聞きたい</div>
+                    <div class="question-text">どんなことができたら嬉しい？</div>
+                </div>
+
+                <div class="question-button" onclick="selectQuestion('相手を大切に思っていることを伝えたい', '最近発見した小さな幸せはどんなこと？')">
+                    <div class="feeling-label">💝 相手を大切に思っていることを伝えたい</div>
+                    <div class="question-text">最近発見した小さな幸せはどんなこと？</div>
+                </div>
+
+                <div class="question-button" onclick="selectQuestion('励ましたい・応援したい', '今がんばっていることはどんなこと？')">
+                    <div class="feeling-label">💪 励ましたい・応援したい</div>
+                    <div class="question-text">今がんばっていることはどんなこと？</div>
+                </div>
+
+                <div class="question-button" onclick="selectQuestion('感謝を伝えたい', '今日嬉しかったことはどんなこと？')">
+                    <div class="feeling-label">🙏 感謝を伝えたい</div>
+                    <div class="question-text">今日嬉しかったことはどんなこと？</div>
+                </div>
+
+                <div class="back-button" onclick="showScreen('home')">
+                    <div class="back-button-text">← ホームに戻る</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 録音画面 -->
+        <div id="record" class="screen">
+            <div class="feeling-label" id="selectedFeeling"></div>
+            <div class="question-display" id="selectedQuestion"></div>
+
+            <div class="record-area">
+                <div class="record-button" id="recordBtn" onclick="toggleRecording()">🎤</div>
+                <div class="record-text" id="recordText">タップで録音開始</div>
+                <div class="recording-timer" id="timer" style="display: none;">0:00</div>
+            </div>
+
+            <div class="back-button" onclick="showScreen('questions')">
+                <div class="back-button-text">← 質問選択に戻る</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isRecording = false;
+        let recordingTime = 0;
+        let timerInterval;
+
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+            document.getElementById(screenId).classList.add('active');
+        }
+
+        function selectQuestion(feeling, question) {
+            document.getElementById('selectedFeeling').textContent = feeling;
+            document.getElementById('selectedQuestion').textContent = question;
+            showScreen('record');
+        }
+
+        function toggleRecording() {
+            const recordBtn = document.getElementById('recordBtn');
+            const recordText = document.getElementById('recordText');
+            const timer = document.getElementById('timer');
+
+            if (!isRecording) {
+                // 録音開始
+                isRecording = true;
+                recordingTime = 0;
+                recordBtn.classList.add('recording');
+                recordBtn.textContent = '⏹';
+                recordText.textContent = 'タップで録音停止';
+                timer.style.display = 'block';
+
+                timerInterval = setInterval(() => {
+                    recordingTime++;
+                    const minutes = Math.floor(recordingTime / 60);
+                    const seconds = recordingTime % 60;
+                    timer.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                }, 1000);
+            } else {
+                // 録音停止
+                isRecording = false;
+                recordBtn.classList.remove('recording');
+                recordBtn.textContent = '📤';
+                recordText.textContent = '家族に送信する';
+                timer.style.display = 'none';
+                clearInterval(timerInterval);
+
+                // 送信完了のメッセージ
+                setTimeout(() => {
+                    alert('メッセージを家族に送信しました！\n\n実際のアプリでは音声ファイルが家族全員に送信され、誰が聞いたかも分かります。');
+                    showScreen('home');
+                    // リセット
+                    recordBtn.textContent = '🎤';
+                    recordText.textContent = 'タップで録音開始';
+                }, 500);
+            }
+        }
+    </script>
+</body>
+</html>
