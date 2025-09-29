@@ -14,7 +14,7 @@ interface VoiceRecorderProps {
 
 type RecordingState = "idle" | "recording" | "stopped" | "uploading" | "completed";
 
-export function VoiceRecorder({ question, onComplete, onCancel }: VoiceRecorderProps) {
+export function VoiceRecorder({ familyId, question, onComplete, onCancel }: VoiceRecorderProps) {
   const [recordingState, setRecordingState] = useState<RecordingState>("idle");
   const [recordingTime, setRecordingTime] = useState(0);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
@@ -59,6 +59,12 @@ export function VoiceRecorder({ question, onComplete, onCancel }: VoiceRecorderP
       };
 
       mediaRecorder.onstop = () => {
+        // タイマー停止
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+
         const blob = new Blob(audioChunksRef.current, { type: 'audio/webm;codecs=opus' });
         setAudioBlob(blob);
         setRecordingState("stopped");
@@ -69,13 +75,20 @@ export function VoiceRecorder({ question, onComplete, onCancel }: VoiceRecorderP
 
       // 録音開始
       mediaRecorder.start();
+
+      // 状態とタイマーを同時に開始
       setRecordingState("recording");
       setRecordingTime(0);
 
-      // タイマー開始
-      timerRef.current = setInterval(() => {
-        setRecordingTime(prev => prev + 1);
-      }, 1000);
+      // タイマー開始（少し遅延させて状態更新後に実行）
+      setTimeout(() => {
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+        }
+        timerRef.current = setInterval(() => {
+          setRecordingTime(prev => prev + 1);
+        }, 1000);
+      }, 100);
 
     } catch (err) {
       console.error('録音開始エラー:', err);
@@ -86,11 +99,7 @@ export function VoiceRecorder({ question, onComplete, onCancel }: VoiceRecorderP
   const stopRecording = () => {
     if (mediaRecorderRef.current && recordingState === "recording") {
       mediaRecorderRef.current.stop();
-
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
+      // タイマーの停止はonstopイベントで処理される
     }
   };
 
@@ -114,10 +123,16 @@ export function VoiceRecorder({ question, onComplete, onCancel }: VoiceRecorderP
     setError("");
 
     try {
-      // TODO: Supabase Storageへのアップロード実装
-      // 今は仮の処理
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // 実際のアップロード処理
+      const { uploadVoiceMessage } = await import('@/lib/voice-upload');
 
+      const result = await uploadVoiceMessage(
+        audioBlob,
+        familyId,
+        question
+      );
+
+      console.log('アップロード成功:', result);
       setRecordingState("completed");
 
       // 2秒後に完了
@@ -127,7 +142,8 @@ export function VoiceRecorder({ question, onComplete, onCancel }: VoiceRecorderP
 
     } catch (err) {
       console.error('アップロードエラー:', err);
-      setError("アップロードに失敗しました。もう一度お試しください。");
+      const errorMessage = err instanceof Error ? err.message : "アップロードに失敗しました。";
+      setError(errorMessage);
       setRecordingState("stopped");
     }
   };

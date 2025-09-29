@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { VoiceRecorder } from "@/components/voice/voice-recorder";
 import { QuestionSelector } from "@/components/questions/question-selector";
 import { FamilyInfo } from "@/components/dashboard/family-info";
+import { VoiceMessagesList } from "@/components/voice/voice-messages-list";
 
 interface DashboardContentProps {
   user: UserWithProfile;
@@ -16,6 +17,7 @@ export function DashboardContent({ user }: DashboardContentProps) {
   const [showRecorder, setShowRecorder] = useState(false);
   const [selectedQuestion, setSelectedQuestion] = useState<string>("");
   const [selectedFamily, setSelectedFamily] = useState(user.families[0]);
+  const [refreshMessages, setRefreshMessages] = useState(0);
 
   return (
     <div className="container max-w-4xl mx-auto px-4 py-8">
@@ -70,6 +72,7 @@ export function DashboardContent({ user }: DashboardContentProps) {
               onComplete={() => {
                 setShowRecorder(false);
                 setSelectedQuestion("");
+                setRefreshMessages(prev => prev + 1); // メッセージ一覧を更新
               }}
               onCancel={() => setShowRecorder(false)}
             />
@@ -78,18 +81,11 @@ export function DashboardContent({ user }: DashboardContentProps) {
       </Card>
 
       {/* 最近のメッセージ */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            📝 最近の家族のひと言
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-8 text-gray-500">
-            ボイスメッセージ機能は開発中です
-          </div>
-        </CardContent>
-      </Card>
+      <VoiceMessagesList
+        familyId={selectedFamily.id}
+        currentUserId={user.profile?.id || ""}
+        key={`${selectedFamily.id}-${refreshMessages}`}
+      />
     </div>
   );
 }

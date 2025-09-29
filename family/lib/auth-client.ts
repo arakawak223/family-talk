@@ -152,3 +152,26 @@ export async function upsertProfile(profile: Partial<Profile>) {
 
   return data;
 }
+
+// アバターのみ更新
+export async function updateAvatar(avatarId: string) {
+  const supabase = createClient();
+
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) {
+    throw new Error('認証が必要です');
+  }
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({ avatar_id: avatarId })
+    .eq('id', user.id)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`アバター更新エラー: ${error.message}`);
+  }
+
+  return data;
+}
