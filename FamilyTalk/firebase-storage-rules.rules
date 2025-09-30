@@ -1,0 +1,63 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // 音声メッセージファイル
+    match /voice-messages/{familyId}/{messageId} {
+      // 読み取り: 認証済みユーザーのみ
+      // （実際はFirestoreのメタデータでアクセス制御を行う）
+      allow read: if request.auth != null;
+
+      // 書き込み: 認証済みユーザーのみ
+      // ファイルサイズ制限: 10MB以下
+      // ファイル形式: 音声ファイルのみ
+      allow write: if request.auth != null &&
+                      request.resource.size < 10 * 1024 * 1024 &&
+                      (request.resource.contentType.matches('audio/.*') ||
+                       request.resource.contentType == 'application/octet-stream');
+
+      // 削除: 認証済みユーザーのみ
+      allow delete: if request.auth != null;
+    }
+
+    // ユーザーアバター画像
+    match /avatars/{userId}/{fileName} {
+      // 読み取り: 全認証済みユーザー（他のユーザーのアバターも見られる）
+      allow read: if request.auth != null;
+
+      // 書き込み: 自分のアバターのみ
+      // ファイルサイズ制限: 5MB以下
+      // ファイル形式: 画像のみ
+      allow write: if request.auth != null &&
+                      request.auth.uid == userId &&
+                      request.resource.size < 5 * 1024 * 1024 &&
+                      request.resource.contentType.matches('image/.*');
+
+      // 削除: 自分のアバターのみ
+      allow delete: if request.auth != null &&
+                       request.auth.uid == userId;
+    }
+
+    // 家族共有画像
+    match /family-photos/{familyId}/{photoId} {
+      // 読み取り: 認証済みユーザー
+      allow read: if request.auth != null;
+
+      // 書き込み: 認証済みユーザー
+      // ファイルサイズ制限: 10MB以下
+      // ファイル形式: 画像のみ
+      allow write: if request.auth != null &&
+                      request.resource.size < 10 * 1024 * 1024 &&
+                      request.resource.contentType.matches('image/.*');
+
+      // 削除: 認証済みユーザー
+      allow delete: if request.auth != null;
+    }
+
+    // デフォルトルール: すべてを拒否
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
