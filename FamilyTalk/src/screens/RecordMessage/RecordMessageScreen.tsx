@@ -11,7 +11,7 @@ import {
 import { AudioRecorder } from '../../utils/AudioRecorder';
 import { DatabaseService } from '../../services/DatabaseService';
 import { StorageService } from '../../services/StorageService';
-import type { Question, QuestionFeeling, QuestionTiming, VoiceMessage } from '../../types';
+import type { Question, QuestionFeeling, QuestionTiming } from '../../types';
 import { feelingLabels } from '../../data/questions';
 
 interface RecordMessageScreenProps {

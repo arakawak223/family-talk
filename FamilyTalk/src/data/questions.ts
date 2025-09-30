@@ -181,6 +181,50 @@ export const questions: Question[] = [
     timing: 'special',
     text: '来年はどんな一年にしたい？',
   },
+
+  // 関西弁で話そう
+  {
+    id: 'q25',
+    category: 'daily',
+    feeling: 'kansai',
+    timing: 'morning',
+    text: '今日はなんしよん？',
+  },
+  {
+    id: 'q26',
+    category: 'daily',
+    feeling: 'kansai',
+    timing: 'evening',
+    text: '今日はどないやった？',
+  },
+  {
+    id: 'q27',
+    category: 'daily',
+    feeling: 'kansai',
+    timing: 'anytime',
+    text: '最近どんなんや？元気にしてるか？',
+  },
+  {
+    id: 'q28',
+    category: 'daily',
+    feeling: 'kansai',
+    timing: 'anytime',
+    text: 'なんか面白いことあった？',
+  },
+  {
+    id: 'q29',
+    category: 'daily',
+    feeling: 'kansai',
+    timing: 'anytime',
+    text: '今度一緒になんかせえへん？',
+  },
+  {
+    id: 'q30',
+    category: 'daily',
+    feeling: 'kansai',
+    timing: 'evening',
+    text: 'お疲れさん！今日もがんばったなあ',
+  },
 ];
 
 // 挨拶メッセージ
@@ -214,6 +258,18 @@ export const greetings: Greeting[] = [
     text: 'いつもありがとう！',
     timing: 'anytime',
     feeling: 'gratitude',
+  },
+  {
+    id: 'g6',
+    text: 'おはようさん！',
+    timing: 'morning',
+    feeling: 'kansai',
+  },
+  {
+    id: 'g7',
+    text: 'お疲れさん！',
+    timing: 'evening',
+    feeling: 'kansai',
   },
 ];
 
@@ -250,4 +306,5 @@ export const feelingLabels = {
   care: '相手を大切に思っていることを伝えたい',
   encourage: '励ましたい・応援したい',
   gratitude: '感謝を伝えたい',
+  kansai: '関西弁で話そう',
 };

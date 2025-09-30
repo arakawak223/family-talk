@@ -11,7 +11,6 @@ import {
   orderBy,
   onSnapshot,
   serverTimestamp,
-  Timestamp,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import type { VoiceMessage, User, FamilyGroup } from '../types';
@@ -97,10 +96,10 @@ export class DatabaseService {
       );
       const querySnapshot = await getDocs(q);
 
-      return querySnapshot.docs.map(doc => {
-        const data = doc.data();
+      return querySnapshot.docs.map(docSnapshot => {
+        const data = docSnapshot.data();
         return {
-          id: doc.id,
+          id: docSnapshot.id,
           ...data,
           createdAt: data.createdAt?.toDate() || new Date(),
         } as FamilyGroup;
@@ -173,10 +172,10 @@ export class DatabaseService {
 
       const querySnapshot = await getDocs(q);
 
-      return querySnapshot.docs.map(doc => {
-        const data = doc.data();
+      return querySnapshot.docs.map(docSnapshot => {
+        const data = docSnapshot.data();
         return {
-          id: doc.id,
+          id: docSnapshot.id,
           ...data,
           timestamp: data.timestamp?.toDate() || new Date(),
         } as VoiceMessage;
@@ -220,10 +219,10 @@ export class DatabaseService {
     );
 
     return onSnapshot(q, (querySnapshot) => {
-      const messages = querySnapshot.docs.map(doc => {
-        const data = doc.data();
+      const messages = querySnapshot.docs.map(docSnapshot => {
+        const data = docSnapshot.data();
         return {
-          id: doc.id,
+          id: docSnapshot.id,
           ...data,
           timestamp: data.timestamp?.toDate() || new Date(),
         } as VoiceMessage;

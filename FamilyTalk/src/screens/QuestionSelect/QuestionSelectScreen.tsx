@@ -4,10 +4,10 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   ScrollView,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { feelingLabels, getQuestions, getRandomQuestion } from '../../data/questions';
 import type { QuestionFeeling, QuestionTiming, Question } from '../../types';
 
@@ -26,6 +26,7 @@ const QuestionSelectScreen: React.FC<QuestionSelectScreenProps> = ({ navigation 
     { key: 'care', icon: '💝' },
     { key: 'encourage', icon: '💪' },
     { key: 'gratitude', icon: '🙏' },
+    { key: 'kansai', icon: '🗣️' },
   ];
 
   const timings: { key: QuestionTiming; label: string; icon: string }[] = [
@@ -76,41 +77,14 @@ const QuestionSelectScreen: React.FC<QuestionSelectScreenProps> = ({ navigation 
       <ScrollView contentContainerStyle={styles.content}>
         {/* ヘッダー */}
         <View style={styles.header}>
-          <Text style={styles.title}>今日はどんなことを</Text>
-          <Text style={styles.titleEmphasis}>聞いてみたいですか？</Text>
-        </View>
-
-        {/* タイミング選択 */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>いつ送りますか？</Text>
-          <View style={styles.timingContainer}>
-            {timings.map((timing) => (
-              <TouchableOpacity
-                key={timing.key}
-                style={[
-                  styles.timingButton,
-                  selectedTiming === timing.key && styles.timingButtonSelected,
-                ]}
-                onPress={() => handleTimingSelect(timing.key)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.timingIcon}>{timing.icon}</Text>
-                <Text
-                  style={[
-                    styles.timingText,
-                    selectedTiming === timing.key && styles.timingTextSelected,
-                  ]}
-                >
-                  {timing.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <Text style={styles.title}>家族との会話を</Text>
+          <Text style={styles.titleEmphasis}>始めませんか？</Text>
+          <Text style={styles.subtitle}>カテゴリを選んで、質問を見つけよう</Text>
         </View>
 
         {/* 気持ち選択 */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>どんな気持ちで聞きたいですか？</Text>
+          <Text style={styles.sectionTitle}>どんな会話をしたいですか？</Text>
           <View style={styles.feelingContainer}>
             {feelings.map((feeling) => (
               <TouchableOpacity
@@ -135,6 +109,36 @@ const QuestionSelectScreen: React.FC<QuestionSelectScreenProps> = ({ navigation 
             ))}
           </View>
         </View>
+
+        {/* タイミング選択 */}
+        {selectedFeeling && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>いつ送りますか？</Text>
+            <View style={styles.timingContainer}>
+              {timings.map((timing) => (
+                <TouchableOpacity
+                  key={timing.key}
+                  style={[
+                    styles.timingButton,
+                    selectedTiming === timing.key && styles.timingButtonSelected,
+                  ]}
+                  onPress={() => handleTimingSelect(timing.key)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.timingIcon}>{timing.icon}</Text>
+                  <Text
+                    style={[
+                      styles.timingText,
+                      selectedTiming === timing.key && styles.timingTextSelected,
+                    ]}
+                  >
+                    {timing.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
 
         {/* おすすめの質問 */}
         {selectedFeeling && suggestedQuestions.length > 0 && (
@@ -170,7 +174,7 @@ const QuestionSelectScreen: React.FC<QuestionSelectScreenProps> = ({ navigation 
         {/* 説明文 */}
         <View style={styles.helpSection}>
           <Text style={styles.helpText}>
-            💡 気持ちを選ぶと、その気持ちにぴったりの質問を提案します
+            💡 まず会話のタイプを選んでください。関西弁カテゴリも含めて、家族に合った質問をお選びいただけます
           </Text>
         </View>
       </ScrollView>
@@ -203,6 +207,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#3498db',
     textAlign: 'center',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#7f8c8d',
+    textAlign: 'center',
+    fontWeight: '400',
   },
   section: {
     marginBottom: 32,
@@ -251,13 +262,17 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   feelingContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 12,
+    justifyContent: 'space-between',
   },
   feelingButton: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#ffffff',
-    padding: 20,
+    padding: 16,
     borderRadius: 16,
     borderWidth: 2,
     borderColor: '#e1e8ed',
@@ -266,20 +281,23 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
+    width: '48%',
+    minHeight: 120,
   },
   feelingButtonSelected: {
     backgroundColor: '#e8f4fd',
     borderColor: '#3498db',
   },
   feelingIcon: {
-    fontSize: 24,
-    marginRight: 16,
+    fontSize: 32,
+    marginBottom: 8,
   },
   feelingText: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#2c3e50',
     fontWeight: '500',
-    flex: 1,
+    textAlign: 'center',
+    lineHeight: 18,
   },
   feelingTextSelected: {
     color: '#3498db',

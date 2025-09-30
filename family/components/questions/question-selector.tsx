@@ -25,6 +25,7 @@ const FEELING_TYPES = {
   care: { label: "大切に思う気持ち", emoji: "💕", color: "bg-pink-100 text-pink-800" },
   encourage: { label: "励まし・応援", emoji: "💪", color: "bg-green-100 text-green-800" },
   gratitude: { label: "感謝", emoji: "🙏", color: "bg-yellow-100 text-yellow-800" },
+  kansai: { label: "関西弁で話そう", emoji: "🗣️", color: "bg-orange-100 text-orange-800" },
 } as const;
 
 
@@ -86,7 +87,7 @@ export function QuestionSelector({ onQuestionSelect, selectedQuestion }: Questio
     onQuestionSelect(randomQuestion);
   };
 
-  const handleKansaiSelect = () => {
+  const handleFeelingSelectKansai = () => {
     setSelectedFeeling("kansai");
     const randomQuestion = getRandomKansaiQuestion();
     onQuestionSelect(randomQuestion);
@@ -103,34 +104,19 @@ export function QuestionSelector({ onQuestionSelect, selectedQuestion }: Questio
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="font-semibold mb-3">今日はどんなことを聞いてみたいですか？</h3>
+        <h3 className="font-semibold mb-3">どんな会話をしたいですか？</h3>
 
-        {/* 関西弁ボタン（特別枠） */}
-        <div className="mb-4">
-          <Button
-            variant={selectedFeeling === "kansai" ? "default" : "outline"}
-            onClick={handleKansaiSelect}
-            className="w-full justify-start h-auto p-4 bg-gradient-to-r from-orange-50 to-yellow-50 border-orange-200 hover:from-orange-100 hover:to-yellow-100"
-          >
-            <span className="mr-3 text-2xl">🗣️</span>
-            <div className="text-left">
-              <div className="font-medium text-orange-800">関西弁で話そ！</div>
-              <div className="text-xs text-orange-600">親しみやすい関西弁で質問するで〜</div>
-            </div>
-          </Button>
-        </div>
-
-        {/* 通常の気持ちボタン */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {/* 6つのカテゴリグリッド */}
+        <div className="grid grid-cols-2 gap-3">
           {Object.entries(FEELING_TYPES).map(([key, feeling]) => (
             <Button
               key={key}
               variant={selectedFeeling === key ? "default" : "outline"}
-              onClick={() => handleFeelingSelect(key)}
-              className="justify-start h-auto p-3"
+              onClick={() => key === "kansai" ? handleFeelingSelectKansai() : handleFeelingSelect(key)}
+              className="justify-start h-auto p-4 flex-col"
             >
-              <span className="mr-2">{feeling.emoji}</span>
-              <span className="text-sm">{feeling.label}</span>
+              <span className="text-2xl mb-2">{feeling.emoji}</span>
+              <span className="text-sm text-center leading-tight">{feeling.label}</span>
             </Button>
           ))}
         </div>
@@ -148,7 +134,7 @@ export function QuestionSelector({ onQuestionSelect, selectedQuestion }: Questio
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => selectedFeeling === "kansai" ? handleKansaiSelect() : handleFeelingSelect(selectedFeeling)}
+                    onClick={() => selectedFeeling === "kansai" ? handleFeelingSelectKansai() : handleFeelingSelect(selectedFeeling)}
                   >
                     🎲 別の質問
                   </Button>

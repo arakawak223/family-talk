@@ -61,6 +61,7 @@ const FamilyGroupScreen: React.FC<FamilyGroupScreenProps> = ({ navigation }) => 
       const groupData = {
         name: newGroupName.trim(),
         adminId: currentUser.uid,
+        createdBy: currentUser.uid,
         members: [userData],
       };
 
@@ -104,7 +105,7 @@ const FamilyGroupScreen: React.FC<FamilyGroupScreenProps> = ({ navigation }) => 
       </View>
 
       <View style={styles.membersList}>
-        {item.members.map((member, index) => (
+        {item.members.map((member, _) => (
           <View key={member.id} style={styles.memberItem}>
             <View style={styles.memberAvatar}>
               <Text style={styles.memberInitial}>

@@ -101,7 +101,7 @@ export class StorageService {
   // 音声ファイルのキャッシュ用ローカルダウンロード
   static async downloadVoiceMessageForCache(
     messageId: string,
-    onProgress?: (progress: number) => void
+    _onProgress?: (progress: number) => void
   ): Promise<string> {
     try {
       const downloadURL = await this.getVoiceMessageDownloadURL(messageId);

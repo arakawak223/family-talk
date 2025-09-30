@@ -36,7 +36,8 @@ export type QuestionFeeling =
   | 'hope' // 未来への希望を聞きたい
   | 'care' // 相手を大切に思っていることを伝えたい
   | 'encourage' // 励ましたい・応援したい
-  | 'gratitude'; // 感謝を伝えたい
+  | 'gratitude' // 感謝を伝えたい
+  | 'kansai'; // 関西弁で話そう
 
 export type QuestionTiming = 'morning' | 'evening' | 'special' | 'anytime';
 

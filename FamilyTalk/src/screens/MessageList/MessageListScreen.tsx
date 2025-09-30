@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,11 +9,9 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { DatabaseService } from '../../services/DatabaseService';
-import { StorageService } from '../../services/StorageService';
 import { AuthService } from '../../services/AuthService';
 import { AudioRecorder } from '../../utils/AudioRecorder';
 import type { VoiceMessage, User } from '../../types';
-import { feelingLabels } from '../../data/questions';
 
 interface MessageListScreenProps {
   navigation: any;
@@ -146,11 +144,6 @@ const MessageListScreen: React.FC<MessageListScreenProps> = ({ navigation }) => 
 
   const audioRecorder = useRef<AudioRecorder>(new AudioRecorder());
 
-  useEffect(() => {
-    loadCurrentUser();
-    loadMessages();
-  }, []);
-
   const loadCurrentUser = async () => {
     try {
       const firebaseUser = AuthService.getCurrentUser();
@@ -163,7 +156,7 @@ const MessageListScreen: React.FC<MessageListScreenProps> = ({ navigation }) => 
     }
   };
 
-  const loadMessages = async () => {
+  const loadMessages = useCallback(async () => {
     try {
       if (!currentUser) return;
 
@@ -177,7 +170,17 @@ const MessageListScreen: React.FC<MessageListScreenProps> = ({ navigation }) => 
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentUser]);
+
+  useEffect(() => {
+    loadCurrentUser();
+  }, []);
+
+  useEffect(() => {
+    if (currentUser) {
+      loadMessages();
+    }
+  }, [currentUser, loadMessages]);
 
   const handlePlayMessage = async (message: VoiceMessage) => {
     try {
