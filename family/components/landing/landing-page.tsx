@@ -34,7 +34,7 @@ export function LandingPage() {
             離れて暮らす家族や引きこもりがちな家族と、<br />
             「どんな〇〇？」の質問を通じて温かいコミュニケーションを
           </p>
-          <div className="flex gap-4 justify-center">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Link href="/auth/sign-up">
               <Button size="lg" className="text-lg px-8 py-6">
                 🚀 始めてみる
@@ -43,6 +43,13 @@ export function LandingPage() {
             <Link href="/auth/login">
               <Button variant="outline" size="lg" className="text-lg px-8 py-6">
                 ログイン
+              </Button>
+            </Link>
+          </div>
+          <div className="mt-6">
+            <Link href="/join-family">
+              <Button variant="link" className="text-base">
+                📨 招待コードで家族グループに参加
               </Button>
             </Link>
           </div>
