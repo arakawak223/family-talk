@@ -11,24 +11,12 @@ export default async function OnboardingPage() {
     redirect("/auth/login");
   }
 
-  // 既存のプロフィールチェック
+  // 既存のプロフィールチェック（リダイレクトなし - 既存ユーザーも新しい家族を作成/参加できる）
   const { data: profile } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', user.id)
     .single();
-
-  // プロフィールが既に存在し、家族に参加している場合はダッシュボードへ
-  if (profile) {
-    const { data: familyMemberships } = await supabase
-      .from('family_members')
-      .select('*')
-      .eq('user_id', user.id);
-
-    if (familyMemberships && familyMemberships.length > 0) {
-      redirect("/dashboard");
-    }
-  }
 
   return (
     <div className="container max-w-lg mx-auto px-4 py-8">
