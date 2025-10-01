@@ -20,10 +20,20 @@ export function DashboardContent({ user }: DashboardContentProps) {
   const [refreshMessages, setRefreshMessages] = useState(0);
 
   const handleLogout = async () => {
-    const { createClient } = await import("@/lib/supabase/client");
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    window.location.href = "/";
+    try {
+      const { createClient } = await import("@/lib/supabase/client");
+      const supabase = createClient();
+      await supabase.auth.signOut();
+      // セッションをクリア
+      localStorage.clear();
+      sessionStorage.clear();
+      // トップページにリダイレクト
+      window.location.href = "/auth/login";
+    } catch (error) {
+      console.error("Logout error:", error);
+      // エラーがあってもログインページにリダイレクト
+      window.location.href = "/auth/login";
+    }
   };
 
   return (
