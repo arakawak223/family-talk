@@ -11,13 +11,6 @@ export default async function OnboardingPage() {
     redirect("/auth/login");
   }
 
-  // 既存のプロフィールチェック（リダイレクトなし - 既存ユーザーも新しい家族を作成/参加できる）
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single();
-
   return (
     <div className="container max-w-lg mx-auto px-4 py-8">
       <div className="text-center mb-8">
