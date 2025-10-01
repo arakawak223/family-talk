@@ -48,9 +48,17 @@ export function DashboardContent({ user }: DashboardContentProps) {
             今日も家族とのひと言を交換しましょう
           </p>
         </div>
-        <Button variant="outline" onClick={handleLogout}>
-          ログアウト
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => (window.location.href = "/onboarding")}
+          >
+            家族グループを管理
+          </Button>
+          <Button variant="outline" onClick={handleLogout}>
+            ログアウト
+          </Button>
+        </div>
       </div>
 
       {/* 家族情報 */}
