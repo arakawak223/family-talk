@@ -22,6 +22,8 @@ export function DashboardContent({ user }: DashboardContentProps) {
   const router = useRouter();
 
   const handleManageFamily = () => {
+    console.log("家族グループを管理ボタンがクリックされました");
+    console.log("Navigating to /onboarding");
     router.push("/onboarding");
   };
 
