@@ -19,16 +19,28 @@ export function DashboardContent({ user }: DashboardContentProps) {
   const [selectedFamily, setSelectedFamily] = useState(user.families[0]);
   const [refreshMessages, setRefreshMessages] = useState(0);
 
+  const handleLogout = async () => {
+    const { createClient } = await import("@/lib/supabase/client");
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    window.location.href = "/";
+  };
+
   return (
     <div className="container max-w-4xl mx-auto px-4 py-8">
       {/* ヘッダー */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold mb-2">
-          おかえりなさい、{user.profile?.display_name}さん！
-        </h1>
-        <p className="text-gray-600">
-          今日も家族とのひと言を交換しましょう
-        </p>
+      <div className="mb-8 flex justify-between items-start">
+        <div>
+          <h1 className="text-2xl font-bold mb-2">
+            おかえりなさい、{user.profile?.display_name}さん！
+          </h1>
+          <p className="text-gray-600">
+            今日も家族とのひと言を交換しましょう
+          </p>
+        </div>
+        <Button variant="outline" onClick={handleLogout}>
+          ログアウト
+        </Button>
       </div>
 
       {/* 家族情報 */}
