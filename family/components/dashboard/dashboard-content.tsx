@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { UserWithProfile } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,11 @@ export function DashboardContent({ user }: DashboardContentProps) {
   const [selectedQuestion, setSelectedQuestion] = useState<string>("");
   const [selectedFamily, setSelectedFamily] = useState(user.families[0]);
   const [refreshMessages, setRefreshMessages] = useState(0);
+  const router = useRouter();
+
+  const handleManageFamily = () => {
+    router.push("/onboarding");
+  };
 
   const handleLogout = async () => {
     try {
@@ -51,7 +57,7 @@ export function DashboardContent({ user }: DashboardContentProps) {
         <div className="flex gap-2">
           <Button
             variant="outline"
-            onClick={() => (window.location.href = "/onboarding")}
+            onClick={handleManageFamily}
           >
             家族グループを管理
           </Button>
