@@ -29,7 +29,6 @@ export function OnboardingForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [families, setFamilies] = useState<UserFamily[]>([]);
-  const [hasProfile, setHasProfile] = useState(false);
 
   // プロフィール情報
   const [profile, setProfile] = useState({
@@ -60,7 +59,6 @@ export function OnboardingForm() {
       setFamilies(userFamilies as UserFamily[]);
 
       if (currentProfile && currentProfile.display_name) {
-        setHasProfile(true);
         setProfile({
           display_name: currentProfile.display_name,
           phone: currentProfile.phone || ""
@@ -89,7 +87,6 @@ export function OnboardingForm() {
 
     try {
       await upsertProfile(profile);
-      setHasProfile(true);
       await loadFamilies();
       setStep("manage-families");
     } catch (err) {
