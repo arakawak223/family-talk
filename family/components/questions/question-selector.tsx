@@ -3,15 +3,21 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+
+interface QuestionCategory {
+  id: string;
+  name: string;
+  description: string;
+  feeling_type: string;
+}
 
 interface QuestionWithCategory {
   id: string;
   question_text: string;
-  category: {
-    feeling_type: string;
-    name: string;
-  };
+  category_id: string;
+  category: QuestionCategory;
 }
 
 interface QuestionSelectorProps {
@@ -31,7 +37,9 @@ const FEELING_TYPES = {
 
 export function QuestionSelector({ onQuestionSelect, selectedQuestion }: QuestionSelectorProps) {
   const [questions, setQuestions] = useState<QuestionWithCategory[]>([]);
-  const [selectedFeeling, setSelectedFeeling] = useState<string>("");
+  const [categories, setCategories] = useState<QuestionCategory[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [showQuestionList, setShowQuestionList] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -41,7 +49,19 @@ export function QuestionSelector({ onQuestionSelect, selectedQuestion }: Questio
   const loadQuestions = async () => {
     const supabase = createClient();
 
-    const { data, error } = await supabase
+    // カテゴリーを取得
+    const { data: categoriesData, error: categoriesError } = await supabase
+      .from('question_categories')
+      .select('*')
+      .order('name');
+
+    if (categoriesError) {
+      console.error('カテゴリー取得エラー:', categoriesError);
+      return;
+    }
+
+    // 質問を取得
+    const { data: questionsData, error: questionsError } = await supabase
       .from('question_templates')
       .select(`
         *,
@@ -49,48 +69,34 @@ export function QuestionSelector({ onQuestionSelect, selectedQuestion }: Questio
       `)
       .eq('is_active', true);
 
-    if (error) {
-      console.error('質問取得エラー:', error);
+    if (questionsError) {
+      console.error('質問取得エラー:', questionsError);
       return;
     }
 
-    const questionsWithCategory = data?.filter(item => item.question_categories).map(item => ({
+    const questionsWithCategory = questionsData?.filter(item => item.question_categories).map(item => ({
       ...item,
       category: item.question_categories
     })) || [];
 
+    setCategories(categoriesData || []);
     setQuestions(questionsWithCategory);
     setLoading(false);
   };
 
-  const getRandomQuestionByFeeling = (feelingType: string) => {
-    const filteredQuestions = questions.filter(q => q.category.feeling_type === feelingType);
-    if (filteredQuestions.length === 0) return "";
-
-    const randomIndex = Math.floor(Math.random() * filteredQuestions.length);
-    return filteredQuestions[randomIndex].question_text;
+  const handleCategorySelect = (categoryId: string) => {
+    setSelectedCategory(categoryId);
+    setShowQuestionList(true);
+    onQuestionSelect(""); // 質問をクリア
   };
 
-  const getRandomKansaiQuestion = () => {
-    const kansaiQuestions = questions.filter(q =>
-      q.category.name.includes('関西弁')
-    );
-    if (kansaiQuestions.length === 0) return "";
-
-    const randomIndex = Math.floor(Math.random() * kansaiQuestions.length);
-    return kansaiQuestions[randomIndex].question_text;
+  const handleQuestionSelect = (question: string) => {
+    onQuestionSelect(question);
+    setShowQuestionList(false); // 質問を選択したら一覧を閉じる
   };
 
-  const handleFeelingSelect = (feelingType: string) => {
-    setSelectedFeeling(feelingType);
-    const randomQuestion = getRandomQuestionByFeeling(feelingType);
-    onQuestionSelect(randomQuestion);
-  };
-
-  const handleFeelingSelectKansai = () => {
-    setSelectedFeeling("kansai");
-    const randomQuestion = getRandomKansaiQuestion();
-    onQuestionSelect(randomQuestion);
+  const getQuestionsByCategory = (categoryId: string) => {
+    return questions.filter(q => q.category_id === categoryId);
   };
 
   if (loading) {
@@ -104,61 +110,104 @@ export function QuestionSelector({ onQuestionSelect, selectedQuestion }: Questio
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="font-semibold mb-3">どんな会話をしたいですか？</h3>
+        <h3 className="font-semibold mb-3">カテゴリーから質問を選ぶ</h3>
 
-        {/* 6つのカテゴリグリッド */}
-        <div className="grid grid-cols-2 gap-3">
-          {Object.entries(FEELING_TYPES).map(([key, feeling]) => (
+        {/* カテゴリーボタン */}
+        <div className="grid grid-cols-2 gap-2 mb-4">
+          {categories.map((category) => (
             <Button
-              key={key}
-              variant={selectedFeeling === key ? "default" : "outline"}
-              onClick={() => key === "kansai" ? handleFeelingSelectKansai() : handleFeelingSelect(key)}
-              className="justify-start h-auto p-4 flex-col"
+              key={category.id}
+              variant={selectedCategory === category.id ? "default" : "outline"}
+              onClick={() => handleCategorySelect(category.id)}
+              className="h-auto py-3 text-sm"
             >
-              <span className="text-2xl mb-2">{feeling.emoji}</span>
-              <span className="text-sm text-center leading-tight">{feeling.label}</span>
+              {category.name}
             </Button>
           ))}
         </div>
+
+        {/* 質問なしで録音ボタン */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            setSelectedCategory("");
+            setShowQuestionList(false);
+            onQuestionSelect("");
+          }}
+          className="w-full"
+        >
+          質問なしで録音
+        </Button>
       </div>
 
-      {selectedQuestion && (
+      {/* 選択されたカテゴリーの質問一覧 */}
+      {showQuestionList && selectedCategory && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">
+              {categories.find(c => c.id === selectedCategory)?.name}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {getQuestionsByCategory(selectedCategory).map((question) => (
+                <Button
+                  key={question.id}
+                  variant="outline"
+                  onClick={() => handleQuestionSelect(question.question_text)}
+                  className="w-full justify-start text-left h-auto py-3 px-4 whitespace-normal"
+                >
+                  {question.question_text}
+                </Button>
+              ))}
+            </div>
+            <div className="mt-4 pt-4 border-t">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowQuestionList(false)}
+                className="w-full"
+              >
+                閉じる
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 選択された質問の表示 */}
+      {selectedQuestion && !showQuestionList && (
         <Card className="bg-blue-50">
           <CardContent className="p-4">
             <div className="flex items-start gap-2">
               <span className="text-2xl">💬</span>
               <div className="flex-1">
-                <p className="font-medium text-blue-900 mb-2">提案された質問：</p>
+                <p className="font-medium text-blue-900 mb-2">選択された質問：</p>
                 <p className="text-blue-800">{selectedQuestion}</p>
                 <div className="mt-3 flex gap-2">
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => selectedFeeling === "kansai" ? handleFeelingSelectKansai() : handleFeelingSelect(selectedFeeling)}
+                    onClick={() => setShowQuestionList(true)}
                   >
-                    🎲 別の質問
+                    別の質問を選ぶ
                   </Button>
                   <Button
                     size="sm"
                     variant="ghost"
                     onClick={() => {
-                      setSelectedFeeling("");
+                      setSelectedCategory("");
                       onQuestionSelect("");
                     }}
                   >
-                    質問なしで録音
+                    クリア
                   </Button>
                 </div>
               </div>
             </div>
           </CardContent>
         </Card>
-      )}
-
-      {!selectedQuestion && selectedFeeling && (
-        <div className="text-center py-4 text-gray-500">
-          この気持ちに合う質問が見つかりませんでした
-        </div>
       )}
     </div>
   );

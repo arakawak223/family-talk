@@ -1,0 +1,213 @@
+-- 質問テンプレートをVersion2に置き換え
+-- Supabase SQL Editorで実行してください
+
+-- 既存の質問テンプレートとカテゴリを削除
+DELETE FROM question_templates;
+DELETE FROM question_categories;
+
+-- ========================================
+-- 標準語バージョン
+-- ========================================
+
+-- カテゴリを作成
+INSERT INTO question_categories (name, description, feeling_type, timing_type, target_type) VALUES
+('今日の予定', '朝の挨拶で今日の予定を聞く', 'interest', 'morning', 'all'),
+('一日の振り返り', '夜の挨拶で一日を振り返る', 'interest', 'evening', 'all'),
+('将来の希望', '未来への希望を聞く', 'hope', 'special', 'all'),
+('夢や目標', '相手の夢や目標について', 'hope', null, 'all'),
+('大切な存在', '相手への愛情を表現', 'care', 'special', 'all'),
+('感謝の気持ち', '相手への感謝を伝える', 'gratitude', 'evening', 'all'),
+('応援・励まし', '相手を励ます質問', 'encourage', null, 'all'),
+('季節の話題', '季節に関連した質問', 'interest', 'seasonal', 'all'),
+('記念日・お祝い', '特別な日の質問', 'care', 'special', 'all');
+
+-- 質問テンプレートを挿入
+
+-- 1. 今日の予定（朝向け）
+INSERT INTO question_templates (category_id, question_text)
+SELECT id, '今日はどんな気分？' FROM question_categories WHERE name = '今日の予定'
+UNION ALL
+SELECT id, '昨日はぐっすり眠れた？' FROM question_categories WHERE name = '今日の予定'
+UNION ALL
+SELECT id, '今日はどんな風に過ごしたい？' FROM question_categories WHERE name = '今日の予定'
+UNION ALL
+SELECT id, '今日は何か楽しいことあるかな？' FROM question_categories WHERE name = '今日の予定';
+
+-- 2. 一日の振り返り（夜向け）
+INSERT INTO question_templates (category_id, question_text)
+SELECT id, '今日はどんな一日だった？' FROM question_categories WHERE name = '一日の振り返り'
+UNION ALL
+SELECT id, '今はどんな気分？' FROM question_categories WHERE name = '一日の振り返り'
+UNION ALL
+SELECT id, '今日はなにかいいことあった？' FROM question_categories WHERE name = '一日の振り返り'
+UNION ALL
+SELECT id, '今日は何が一番楽しかった？' FROM question_categories WHERE name = '一日の振り返り'
+UNION ALL
+SELECT id, '今日はどんなこと頑張った？' FROM question_categories WHERE name = '一日の振り返り'
+UNION ALL
+SELECT id, '今日はどんな発見があった？' FROM question_categories WHERE name = '一日の振り返り'
+UNION ALL
+SELECT id, '今日はおもしろいニュースあった？' FROM question_categories WHERE name = '一日の振り返り';
+
+-- 3. 将来の希望
+INSERT INTO question_templates (category_id, question_text)
+SELECT id, 'どんなことができたら嬉しい？' FROM question_categories WHERE name = '将来の希望'
+UNION ALL
+SELECT id, 'どんなことができたら最高？' FROM question_categories WHERE name = '将来の希望'
+UNION ALL
+SELECT id, 'どんなことができるようになったら嬉しい？' FROM question_categories WHERE name = '将来の希望'
+UNION ALL
+SELECT id, 'それができたらどんな気分？' FROM question_categories WHERE name = '将来の希望'
+UNION ALL
+SELECT id, 'どんな自分になりたい？' FROM question_categories WHERE name = '将来の希望';
+
+-- 4. 夢や目標
+INSERT INTO question_templates (category_id, question_text)
+SELECT id, '最近どんなことに興味ある？' FROM question_categories WHERE name = '夢や目標'
+UNION ALL
+SELECT id, '最近はまっていることはどんなこと？' FROM question_categories WHERE name = '夢や目標'
+UNION ALL
+SELECT id, 'やってみたいことはなにかある？どんなこと？' FROM question_categories WHERE name = '夢や目標'
+UNION ALL
+SELECT id, 'どんなことを学んでみたい？' FROM question_categories WHERE name = '夢や目標'
+UNION ALL
+SELECT id, 'どんなところに行ってみたい？' FROM question_categories WHERE name = '夢や目標';
+
+-- 5. 大切な存在
+INSERT INTO question_templates (category_id, question_text)
+SELECT id, 'それができたときはまず誰にそれを伝えたい？' FROM question_categories WHERE name = '大切な存在'
+UNION ALL
+SELECT id, '今一番大切にしていることは何？' FROM question_categories WHERE name = '大切な存在'
+UNION ALL
+SELECT id, 'どんなときに幸せを感じる？' FROM question_categories WHERE name = '大切な存在';
+
+-- 6. 感謝の気持ち
+INSERT INTO question_templates (category_id, question_text)
+SELECT id, '今日はどんなことにありがとうって思った？' FROM question_categories WHERE name = '感謝の気持ち'
+UNION ALL
+SELECT id, '最近嬉しかったことは何？' FROM question_categories WHERE name = '感謝の気持ち'
+UNION ALL
+SELECT id, '今どんなことに感謝してる？' FROM question_categories WHERE name = '感謝の気持ち'
+UNION ALL
+SELECT id, '今までですごく感謝してることってどんなこと？' FROM question_categories WHERE name = '感謝の気持ち';
+
+-- 7. 応援・励まし
+INSERT INTO question_templates (category_id, question_text)
+SELECT id, '今頑張っていることはある？' FROM question_categories WHERE name = '応援・励まし'
+UNION ALL
+SELECT id, '何か手伝えることはある？' FROM question_categories WHERE name = '応援・励まし'
+UNION ALL
+SELECT id, 'どんなふうに応援したらいい？' FROM question_categories WHERE name = '応援・励まし'
+UNION ALL
+SELECT id, '今日もお疲れさま！どんな一日だった？' FROM question_categories WHERE name = '応援・励まし';
+
+-- 8. 季節の話題
+INSERT INTO question_templates (category_id, question_text)
+SELECT id, '春になったね、なにかやりたいことある？' FROM question_categories WHERE name = '季節の話題'
+UNION ALL
+SELECT id, '春だね、どこか行きたいことある？' FROM question_categories WHERE name = '季節の話題'
+UNION ALL
+SELECT id, '秋になったね、なにかやりたいことある？' FROM question_categories WHERE name = '季節の話題'
+UNION ALL
+SELECT id, '秋だね、どこか行きたいことある？' FROM question_categories WHERE name = '季節の話題'
+UNION ALL
+SELECT id, '今年の夏はなにかやりたいことある？' FROM question_categories WHERE name = '季節の話題'
+UNION ALL
+SELECT id, '今年の冬はなにかやりたいことある？' FROM question_categories WHERE name = '季節の話題'
+UNION ALL
+SELECT id, '暑いねえ、体調はどう？' FROM question_categories WHERE name = '季節の話題'
+UNION ALL
+SELECT id, '寒いねえ、体調はどう？' FROM question_categories WHERE name = '季節の話題';
+
+-- 9. 記念日・お祝い
+INSERT INTO question_templates (category_id, question_text)
+SELECT id, 'お誕生日おめでとう！○歳になって、どんな一年にしたい？' FROM question_categories WHERE name = '記念日・お祝い'
+UNION ALL
+SELECT id, '今日はどんな気持ち？' FROM question_categories WHERE name = '記念日・お祝い'
+UNION ALL
+SELECT id, 'おめでとう！どんな気分？' FROM question_categories WHERE name = '記念日・お祝い';
+
+-- ========================================
+-- 関西弁バージョン
+-- ========================================
+
+INSERT INTO question_categories (name, description, feeling_type, timing_type, target_type) VALUES
+('関西弁で今日のこと', '関西弁で今日あったことを聞いてみよう！', 'interest', 'evening', 'all'),
+('関西弁で気持ち', '関西弁で気持ちを聞いてみよう！', 'care', 'all', 'all'),
+('関西弁で楽しい話', '関西弁で楽しい話を聞いてみよう！', 'encourage', 'all', 'all');
+
+-- 1. 関西弁で今日のこと（夜向け）
+INSERT INTO question_templates (category_id, question_text)
+SELECT id, '今日なんかええことあった？' FROM question_categories WHERE name = '関西弁で今日のこと'
+UNION ALL
+SELECT id, '今日は一日どないやった？' FROM question_categories WHERE name = '関西弁で今日のこと'
+UNION ALL
+SELECT id, '今日なんかおもろいことあった？' FROM question_categories WHERE name = '関西弁で今日のこと'
+UNION ALL
+SELECT id, '今日なんかがんばった？' FROM question_categories WHERE name = '関西弁で今日のこと'
+UNION ALL
+SELECT id, '今日なんか新しいことあった？' FROM question_categories WHERE name = '関西弁で今日のこと'
+UNION ALL
+SELECT id, '今日なんか美味しいもん食べた？' FROM question_categories WHERE name = '関西弁で今日のこと'
+UNION ALL
+SELECT id, '今日は〇〇お疲れさんやったね！どやった？' FROM question_categories WHERE name = '関西弁で今日のこと'
+UNION ALL
+SELECT id, '今日誰かとおうたん（会うたん）？どんな人？' FROM question_categories WHERE name = '関西弁で今日のこと'
+UNION ALL
+SELECT id, '今日なんかやらかしたん？大丈夫やった？' FROM question_categories WHERE name = '関西弁で今日のこと'
+UNION ALL
+SELECT id, '今日そっちはどんな天気やったん？' FROM question_categories WHERE name = '関西弁で今日のこと';
+
+-- 2. 関西弁で気持ち
+INSERT INTO question_templates (category_id, question_text)
+SELECT id, 'なんか元気ないけど大丈夫？' FROM question_categories WHERE name = '関西弁で気持ち'
+UNION ALL
+SELECT id, '最近調子どない？元気にしてるん？' FROM question_categories WHERE name = '関西弁で気持ち'
+UNION ALL
+SELECT id, 'なんか心配事でもあんの？言うてみい？' FROM question_categories WHERE name = '関西弁で気持ち'
+UNION ALL
+SELECT id, 'なんか悩んでることあんの？聞くで？' FROM question_categories WHERE name = '関西弁で気持ち'
+UNION ALL
+SELECT id, '今気分どない？' FROM question_categories WHERE name = '関西弁で気持ち'
+UNION ALL
+SELECT id, '最近なんかええことあったん？' FROM question_categories WHERE name = '関西弁で気持ち'
+UNION ALL
+SELECT id, '最近なんかおもろいことあった？' FROM question_categories WHERE name = '関西弁で気持ち'
+UNION ALL
+SELECT id, 'ストレス溜まってんのちゃう？無理したらあかんで？' FROM question_categories WHERE name = '関西弁で気持ち'
+UNION ALL
+SELECT id, '今度一緒に遊ばへん？何したい？' FROM question_categories WHERE name = '関西弁で気持ち'
+UNION ALL
+SELECT id, '体調どない？ちゃんと食べてる？' FROM question_categories WHERE name = '関西弁で気持ち'
+UNION ALL
+SELECT id, '体調どない？ちゃんと寝れてる？' FROM question_categories WHERE name = '関西弁で気持ち';
+
+-- 3. 関西弁で楽しい話
+INSERT INTO question_templates (category_id, question_text)
+SELECT id, '最近ハマってることあんの？' FROM question_categories WHERE name = '関西弁で楽しい話'
+UNION ALL
+SELECT id, 'なんかおもろい話ないの？' FROM question_categories WHERE name = '関西弁で楽しい話'
+UNION ALL
+SELECT id, '今度の休みは何すんの？' FROM question_categories WHERE name = '関西弁で楽しい話'
+UNION ALL
+SELECT id, 'おすすめの映画とかドラマなんかある？' FROM question_categories WHERE name = '関西弁で楽しい話'
+UNION ALL
+SELECT id, '好きな食べもん何？今度一緒に食べよ！' FROM question_categories WHERE name = '関西弁で楽しい話'
+UNION ALL
+SELECT id, '最近なんかおもろい本あった？' FROM question_categories WHERE name = '関西弁で楽しい話'
+UNION ALL
+SELECT id, '昔やった、あれ、なんやったけ？覚えてる？' FROM question_categories WHERE name = '関西弁で楽しい話'
+UNION ALL
+SELECT id, 'なんか欲しいもんとかあんの？' FROM question_categories WHERE name = '関西弁で楽しい話'
+UNION ALL
+SELECT id, '最近なんかおもろいとこ行った？' FROM question_categories WHERE name = '関西弁で楽しい話'
+UNION ALL
+SELECT id, 'なんかやりたいことあんの？' FROM question_categories WHERE name = '関西弁で楽しい話'
+UNION ALL
+SELECT id, '〇〇はすごいな、たぶん世界一ちゃう？知らんけど！' FROM question_categories WHERE name = '関西弁で楽しい話'
+UNION ALL
+SELECT id, '〇〇は旨いな、たぶん関西一やで、いや日本一ちゃう？知らんけど！' FROM question_categories WHERE name = '関西弁で楽しい話'
+UNION ALL
+SELECT id, 'もし宝くじ当たったら何する？今回絶対当たると思うねん、知らんけど！' FROM question_categories WHERE name = '関西弁で楽しい話'
+UNION ALL
+SELECT id, '家族で今度どっか旅行行くとしたらどこがええ？' FROM question_categories WHERE name = '関西弁で楽しい話';
