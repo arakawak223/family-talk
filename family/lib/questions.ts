@@ -14,6 +14,21 @@ export interface PrimaryCategory {
   secondaryCategories: string[];
 }
 
+// 元の質問テンプレートの型定義
+export interface QuestionCategory {
+  id: string;
+  name: string;
+  description: string;
+  feeling_type: string;
+}
+
+export interface QuestionTemplate {
+  id: string;
+  question_text: string;
+  category_id: string;
+  category: QuestionCategory;
+}
+
 /**
  * 1次カテゴリーの一覧を取得
  */
@@ -159,4 +174,82 @@ export async function getQuestionById(id: number): Promise<Question | null> {
   }
 
   return data;
+}
+
+// ============================================
+// 元の質問テンプレート関連の関数
+// ============================================
+
+/**
+ * 元の質問カテゴリー一覧を取得
+ */
+export async function getQuestionCategories(): Promise<QuestionCategory[]> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from('question_categories')
+    .select('*')
+    .order('name');
+
+  if (error) {
+    console.error('カテゴリー取得エラー:', error);
+    return [];
+  }
+
+  return data || [];
+}
+
+/**
+ * カテゴリー別に元の質問テンプレートを取得
+ */
+export async function getQuestionTemplatesByCategory(categoryId: string): Promise<QuestionTemplate[]> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from('question_templates')
+    .select(`
+      *,
+      question_categories(*)
+    `)
+    .eq('category_id', categoryId)
+    .eq('is_active', true);
+
+  if (error) {
+    console.error('質問テンプレート取得エラー:', error);
+    return [];
+  }
+
+  const templates = data?.filter(item => item.question_categories).map(item => ({
+    ...item,
+    category: item.question_categories
+  })) || [];
+
+  return templates;
+}
+
+/**
+ * すべての元の質問テンプレートを取得
+ */
+export async function getAllQuestionTemplates(): Promise<QuestionTemplate[]> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from('question_templates')
+    .select(`
+      *,
+      question_categories(*)
+    `)
+    .eq('is_active', true);
+
+  if (error) {
+    console.error('質問テンプレート取得エラー:', error);
+    return [];
+  }
+
+  const templates = data?.filter(item => item.question_categories).map(item => ({
+    ...item,
+    category: item.question_categories
+  })) || [];
+
+  return templates;
 }
