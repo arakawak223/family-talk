@@ -175,3 +175,84 @@ export async function updateAvatar(avatarId: string) {
 
   return data;
 }
+
+// ユーザーの家族グループ一覧を取得
+export async function getUserFamilies() {
+  const supabase = createClient();
+
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) {
+    throw new Error('認証が必要です');
+  }
+
+  const { data: memberships, error: memberError } = await supabase
+    .from('family_members')
+    .select(`
+      *,
+      family:families(*)
+    `)
+    .eq('user_id', user.id);
+
+  if (memberError) {
+    throw new Error(`家族取得エラー: ${memberError.message}`);
+  }
+
+  return memberships || [];
+}
+
+// 家族グループを削除（管理者のみ）
+export async function deleteFamily(familyId: string) {
+  const supabase = createClient();
+
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) {
+    throw new Error('認証が必要です');
+  }
+
+  // 管理者権限チェック
+  const { data: membership, error: checkError } = await supabase
+    .from('family_members')
+    .select('*')
+    .eq('family_id', familyId)
+    .eq('user_id', user.id)
+    .single();
+
+  if (checkError || !membership) {
+    throw new Error('この家族グループにアクセスできません');
+  }
+
+  if (membership.role !== 'admin') {
+    throw new Error('管理者のみが家族グループを削除できます');
+  }
+
+  // 家族グループを削除（カスケード削除でメンバーも削除される）
+  const { error: deleteError } = await supabase
+    .from('families')
+    .delete()
+    .eq('id', familyId);
+
+  if (deleteError) {
+    throw new Error(`家族削除エラー: ${deleteError.message}`);
+  }
+}
+
+// 家族グループから退出
+export async function leaveFamily(familyId: string) {
+  const supabase = createClient();
+
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) {
+    throw new Error('認証が必要です');
+  }
+
+  // メンバーシップを削除
+  const { error: deleteError } = await supabase
+    .from('family_members')
+    .delete()
+    .eq('family_id', familyId)
+    .eq('user_id', user.id);
+
+  if (deleteError) {
+    throw new Error(`退出エラー: ${deleteError.message}`);
+  }
+}
