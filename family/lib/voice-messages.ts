@@ -50,7 +50,7 @@ export async function getFamilyVoiceMessages(familyId: string): Promise<VoiceMes
           .select('listened_at')
           .eq('message_id', message.id)
           .eq('recipient_id', user.id)
-          .single();
+          .maybeSingle();
 
         isListened = !!recipient?.listened_at;
       }
