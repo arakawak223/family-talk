@@ -44,10 +44,21 @@ export function VoiceRecorder({ familyId, question, onComplete, onCancel }: Voic
       // マイクアクセス許可を取得
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
+      // 利用可能なMIMEタイプを確認
+      let mimeType = 'audio/webm;codecs=opus';
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        // iOSの場合、audio/mp4がサポートされている
+        mimeType = 'audio/mp4';
+        if (!MediaRecorder.isTypeSupported(mimeType)) {
+          // フォールバック
+          mimeType = '';
+        }
+      }
+
       // MediaRecorderを初期化
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus'
-      });
+      const mediaRecorder = mimeType
+        ? new MediaRecorder(stream, { mimeType })
+        : new MediaRecorder(stream);
 
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
@@ -65,7 +76,7 @@ export function VoiceRecorder({ familyId, question, onComplete, onCancel }: Voic
           timerRef.current = null;
         }
 
-        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm;codecs=opus' });
+        const blob = new Blob(audioChunksRef.current, { type: mimeType || 'audio/webm' });
         setAudioBlob(blob);
         setRecordingState("stopped");
 
@@ -92,7 +103,17 @@ export function VoiceRecorder({ familyId, question, onComplete, onCancel }: Voic
 
     } catch (err) {
       console.error('録音開始エラー:', err);
-      setError("マイクアクセスが許可されていません。ブラウザの設定を確認してください。");
+      if (err instanceof Error) {
+        if (err.name === 'NotAllowedError') {
+          setError("マイクアクセスが拒否されました。SafariのアドレスバーのAA → Webサイトの設定 → マイクを「許可」に変更してください。");
+        } else if (err.name === 'NotFoundError') {
+          setError("マイクが見つかりませんでした。");
+        } else {
+          setError(`録音エラー: ${err.message}`);
+        }
+      } else {
+        setError("マイクアクセスが許可されていません。ブラウザの設定を確認してください。");
+      }
     }
   };
 

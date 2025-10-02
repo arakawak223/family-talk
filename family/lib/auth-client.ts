@@ -96,18 +96,20 @@ export async function joinFamilyByInviteCode(inviteCode: string) {
     .single();
 
   if (familyError || !family) {
+    console.error('招待コード検索エラー:', familyError);
+    console.log('入力された招待コード:', inviteCode.toUpperCase());
     throw new Error('無効な招待コードです');
   }
 
   // 既に参加済みかチェック
-  const { data: existingMember, error: checkError } = await supabase
+  const { data: existingMember } = await supabase
     .from('family_members')
     .select('*')
     .eq('family_id', family.id)
     .eq('user_id', user.id)
-    .single();
+    .maybeSingle();
 
-  if (existingMember && !checkError) {
+  if (existingMember) {
     throw new Error('既にこの家族に参加しています');
   }
 
