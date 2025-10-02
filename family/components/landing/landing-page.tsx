@@ -34,17 +34,21 @@ export function LandingPage() {
             離れて暮らす家族や引きこもりがちな家族と、<br />
             「どんな〇〇？」の質問を通じて温かいコミュニケーションを
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Link href="/auth/sign-up">
-              <Button size="lg" className="text-lg px-8 py-6">
-                🚀 始めてみる
-              </Button>
-            </Link>
-            <Link href="/auth/login">
-              <Button variant="outline" size="lg" className="text-lg px-8 py-6">
-                ログイン
-              </Button>
-            </Link>
+          <div className="space-y-4">
+            <div className="flex justify-center">
+              <Link href="/auth/sign-up" className="w-full max-w-sm">
+                <Button size="lg" className="w-full text-lg px-8 py-6">
+                  🚀 始めてみる
+                </Button>
+              </Link>
+            </div>
+            <div className="flex justify-center">
+              <Link href="/auth/login" className="w-full max-w-sm">
+                <Button variant="outline" size="lg" className="w-full text-lg px-8 py-6">
+                  ログイン
+                </Button>
+              </Link>
+            </div>
           </div>
           <div className="mt-6">
             <Link href="/join-family">
@@ -156,11 +160,13 @@ export function LandingPage() {
           <p className="text-gray-600 mb-8">
             無料でご利用いただけます。招待コードで家族をお招きして、温かいひと言を交換しましょう。
           </p>
-          <Link href="/auth/sign-up">
-            <Button size="lg" className="text-lg px-12 py-6">
-              🎤 無料で始める
-            </Button>
-          </Link>
+          <div className="flex justify-center">
+            <Link href="/auth/sign-up" className="w-full max-w-sm">
+              <Button size="lg" className="w-full text-lg px-12 py-6">
+                🎤 無料で始める
+              </Button>
+            </Link>
+          </div>
         </div>
       </main>
 

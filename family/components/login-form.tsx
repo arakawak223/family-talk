@@ -89,9 +89,11 @@ export function LoginForm({
                 />
               </div>
               {error && <p className="text-sm text-red-500">{error}</p>}
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Logging in..." : "Login"}
-              </Button>
+              <div className="flex justify-center">
+                <Button type="submit" className="w-full max-w-sm" size="lg" disabled={isLoading}>
+                  {isLoading ? "ログイン中..." : "ログイン"}
+                </Button>
+              </div>
             </div>
             <div className="mt-4 text-center text-sm">
               Don&apos;t have an account?{" "}

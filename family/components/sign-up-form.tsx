@@ -102,9 +102,11 @@ export function SignUpForm({
                 />
               </div>
               {error && <p className="text-sm text-red-500">{error}</p>}
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Creating an account..." : "Sign up"}
-              </Button>
+              <div className="flex justify-center">
+                <Button type="submit" className="w-full max-w-sm" size="lg" disabled={isLoading}>
+                  {isLoading ? "アカウント作成中..." : "サインアップ"}
+                </Button>
+              </div>
             </div>
             <div className="mt-4 text-center text-sm">
               Already have an account?{" "}

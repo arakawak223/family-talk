@@ -248,45 +248,53 @@ export function VoiceRecorder({ familyId, question, onComplete, onCancel }: Voic
             </div>
           )}
 
-          {/* 操作ボタン */}
-          <div className="flex gap-2 justify-center">
-            {recordingState === "idle" && (
-              <>
-                <Button onClick={startRecording} className="flex-1" size="lg">
+          {/* 操作ボタン - 常に同じ位置に主要アクションを配置 */}
+          <div className="space-y-3">
+            {/* メインアクションボタン（常に同じ位置） */}
+            <div className="flex justify-center">
+              {recordingState === "idle" && (
+                <Button onClick={startRecording} className="w-full max-w-sm" size="lg">
                   🎤 録音開始
                 </Button>
-                <Button onClick={onCancel} variant="outline" className="flex-1">
-                  キャンセル
-                </Button>
-              </>
-            )}
+              )}
 
-            {recordingState === "recording" && (
-              <Button onClick={stopRecording} variant="destructive" size="lg" className="flex-1">
-                ⏹️ 録音停止
-              </Button>
-            )}
+              {recordingState === "recording" && (
+                <Button onClick={stopRecording} variant="destructive" size="lg" className="w-full max-w-sm">
+                  ⏹️ 録音停止
+                </Button>
+              )}
 
-            {recordingState === "stopped" && (
-              <>
-                <Button onClick={playRecording} variant="outline">
-                  ▶️ 再生
-                </Button>
-                <Button onClick={startRecording} variant="outline">
-                  🔄 録音し直し
-                </Button>
-                <Button onClick={uploadRecording} className="flex-1">
+              {recordingState === "stopped" && (
+                <Button onClick={uploadRecording} className="w-full max-w-sm" size="lg">
                   📤 送信
                 </Button>
-                <Button onClick={onCancel} variant="outline">
-                  キャンセル
+              )}
+
+              {(recordingState === "uploading" || recordingState === "completed") && (
+                <Button disabled className="w-full max-w-sm" size="lg">
+                  {recordingState === "uploading" ? "送信中..." : "✅ 完了"}
                 </Button>
-              </>
+              )}
+            </div>
+
+            {/* サブアクションボタン */}
+            {recordingState === "stopped" && (
+              <div className="flex gap-2 justify-center">
+                <Button onClick={playRecording} variant="outline" size="sm">
+                  ▶️ 再生
+                </Button>
+                <Button onClick={startRecording} variant="outline" size="sm">
+                  🔄 録音し直し
+                </Button>
+              </div>
             )}
 
-            {(recordingState === "uploading" || recordingState === "completed") && (
-              <div className="text-center text-gray-500">
-                処理中です...
+            {/* キャンセルボタン */}
+            {(recordingState === "idle" || recordingState === "stopped") && (
+              <div className="flex justify-center">
+                <Button onClick={onCancel} variant="ghost" size="sm" className="text-gray-500">
+                  キャンセル
+                </Button>
               </div>
             )}
           </div>

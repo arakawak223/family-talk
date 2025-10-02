@@ -47,8 +47,8 @@ export function DashboardContent({ user }: DashboardContentProps) {
   return (
     <div className="container max-w-4xl mx-auto px-4 py-8">
       {/* ヘッダー */}
-      <div className="mb-8 flex justify-between items-start">
-        <div>
+      <div className="mb-8">
+        <div className="mb-4">
           <h1 className="text-2xl font-bold mb-2">
             おかえりなさい、{user.profile?.display_name}さん！
           </h1>
@@ -56,14 +56,15 @@ export function DashboardContent({ user }: DashboardContentProps) {
             今日も家族とのひと言を交換しましょう
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <Button
             variant="outline"
             onClick={handleManageFamily}
+            className="w-full sm:w-auto"
           >
             家族グループを管理
           </Button>
-          <Button variant="outline" onClick={handleLogout}>
+          <Button variant="outline" onClick={handleLogout} className="w-full sm:w-auto">
             ログアウト
           </Button>
         </div>
@@ -94,14 +95,16 @@ export function DashboardContent({ user }: DashboardContentProps) {
                 selectedQuestion={selectedQuestion}
               />
 
-              {/* 録音開始ボタン */}
-              <Button
-                onClick={() => setShowRecorder(true)}
-                className="w-full"
-                size="lg"
-              >
-                🎤 録音を開始
-              </Button>
+              {/* 録音開始ボタン - 中央配置で統一 */}
+              <div className="flex justify-center">
+                <Button
+                  onClick={() => setShowRecorder(true)}
+                  className="w-full max-w-sm"
+                  size="lg"
+                >
+                  🎤 録音を開始
+                </Button>
+              </div>
             </div>
           ) : (
             <VoiceRecorder
