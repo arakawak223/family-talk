@@ -7,10 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { upsertProfile, createFamily, joinFamilyByInviteCode, getUserFamilies, deleteFamily, leaveFamily, getCurrentUserProfile } from "@/lib/auth-client";
+import { upsertProfile, createFamily, joinFamilyByInviteCode, getUserFamilies, deleteFamily, leaveFamily, getCurrentUserProfile, updateAvatar } from "@/lib/auth-client";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { AvatarSelector } from "@/components/profile/avatar-selector";
 
-type OnboardingStep = "profile" | "family-choice" | "create-family" | "join-family" | "manage-families";
+type OnboardingStep = "profile" | "avatar" | "family-choice" | "create-family" | "join-family" | "manage-families";
 type UserFamily = {
   id: string;
   family_id: string;
@@ -87,6 +88,20 @@ export function OnboardingForm() {
 
     try {
       await upsertProfile(profile);
+      setStep("avatar"); // アバター選択に進む
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "エラーが発生しました");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAvatarSelect = async (avatarId: string) => {
+    setLoading(true);
+    setError("");
+
+    try {
+      await updateAvatar(avatarId);
       await loadFamilies();
       setStep("manage-families");
     } catch (err) {
@@ -203,6 +218,23 @@ export function OnboardingForm() {
           </form>
         </CardContent>
       </Card>
+    );
+  }
+
+  if (step === "avatar") {
+    return (
+      <div>
+        {loading && (
+          <div className="text-center py-4 text-gray-500">保存中...</div>
+        )}
+        {error && (
+          <div className="mb-4 text-red-600 text-sm text-center">{error}</div>
+        )}
+        <AvatarSelector
+          currentAvatarId={null}
+          onAvatarSelect={handleAvatarSelect}
+        />
+      </div>
     );
   }
 
