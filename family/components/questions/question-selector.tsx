@@ -1,83 +1,60 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
-interface QuestionCategory {
-  id: string;
-  name: string;
-  description: string;
-  feeling_type: string;
-}
-
-interface QuestionWithCategory {
-  id: string;
-  question_text: string;
-  category_id: string;
-  category: QuestionCategory;
-}
+import {
+  getPrimaryCategories,
+  getSecondaryCategories,
+  getQuestionsByCategory,
+  Question
+} from "@/lib/questions";
 
 interface QuestionSelectorProps {
   onQuestionSelect: (question: string) => void;
   selectedQuestion: string;
 }
 
-
 export function QuestionSelector({ onQuestionSelect, selectedQuestion }: QuestionSelectorProps) {
-  const [questions, setQuestions] = useState<QuestionWithCategory[]>([]);
-  const [categories, setCategories] = useState<QuestionCategory[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [primaryCategories, setPrimaryCategories] = useState<string[]>([]);
+  const [secondaryCategories, setSecondaryCategories] = useState<string[]>([]);
+  const [questions, setQuestions] = useState<Question[]>([]);
+
+  const [selectedPrimary, setSelectedPrimary] = useState<string>("");
+  const [selectedSecondary, setSelectedSecondary] = useState<string>("");
+  const [showSecondaryList, setShowSecondaryList] = useState(false);
   const [showQuestionList, setShowQuestionList] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadQuestions();
+    loadPrimaryCategories();
   }, []);
 
-  const loadQuestions = async () => {
-    const supabase = createClient();
-
-    // カテゴリーを取得
-    const { data: categoriesData, error: categoriesError } = await supabase
-      .from('question_categories')
-      .select('*')
-      .order('name');
-
-    if (categoriesError) {
-      console.error('カテゴリー取得エラー:', categoriesError);
-      return;
-    }
-
-    // 質問を取得
-    const { data: questionsData, error: questionsError } = await supabase
-      .from('question_templates')
-      .select(`
-        *,
-        question_categories(*)
-      `)
-      .eq('is_active', true);
-
-    if (questionsError) {
-      console.error('質問取得エラー:', questionsError);
-      return;
-    }
-
-    const questionsWithCategory = questionsData?.filter(item => item.question_categories).map(item => ({
-      ...item,
-      category: item.question_categories
-    })) || [];
-
-    setCategories(categoriesData || []);
-    setQuestions(questionsWithCategory);
+  const loadPrimaryCategories = async () => {
+    const categories = await getPrimaryCategories();
+    setPrimaryCategories(categories);
     setLoading(false);
   };
 
-  const handleCategorySelect = (categoryId: string) => {
-    setSelectedCategory(categoryId);
-    setShowQuestionList(true);
+  const handlePrimaryCategorySelect = async (category: string) => {
+    setSelectedPrimary(category);
+    setSelectedSecondary("");
+    setShowSecondaryList(true);
+    setShowQuestionList(false);
     onQuestionSelect(""); // 質問をクリア
+
+    // 2次カテゴリーを取得
+    const secondary = await getSecondaryCategories(category);
+    setSecondaryCategories(secondary);
+  };
+
+  const handleSecondaryCategorySelect = async (category: string) => {
+    setSelectedSecondary(category);
+    setShowQuestionList(true);
+
+    // 質問を取得
+    const questionsData = await getQuestionsByCategory(selectedPrimary, category);
+    setQuestions(questionsData);
   };
 
   const handleQuestionSelect = (question: string) => {
@@ -85,8 +62,14 @@ export function QuestionSelector({ onQuestionSelect, selectedQuestion }: Questio
     setShowQuestionList(false); // 質問を選択したら一覧を閉じる
   };
 
-  const getQuestionsByCategory = (categoryId: string) => {
-    return questions.filter(q => q.category_id === categoryId);
+  const handleBack = () => {
+    if (showQuestionList) {
+      setShowQuestionList(false);
+      setSelectedSecondary("");
+    } else if (showSecondaryList) {
+      setShowSecondaryList(false);
+      setSelectedPrimary("");
+    }
   };
 
   if (loading) {
@@ -99,49 +82,92 @@ export function QuestionSelector({ onQuestionSelect, selectedQuestion }: Questio
 
   return (
     <div className="space-y-4">
-      <div>
-        <h3 className="font-semibold mb-3">カテゴリーから質問を選ぶ</h3>
+      {/* 1次カテゴリー選択 */}
+      {!showSecondaryList && !showQuestionList && (
+        <div>
+          <h3 className="font-semibold mb-3">どんなことを話したい？</h3>
+          <div className="grid grid-cols-1 gap-2 mb-4">
+            {primaryCategories.map((category) => (
+              <Button
+                key={category}
+                variant="outline"
+                onClick={() => handlePrimaryCategorySelect(category)}
+                className="h-auto py-4 text-base font-medium"
+              >
+                {category}
+              </Button>
+            ))}
+          </div>
 
-        {/* カテゴリーボタン */}
-        <div className="grid grid-cols-2 gap-2 mb-4">
-          {categories.map((category) => (
-            <Button
-              key={category.id}
-              variant={selectedCategory === category.id ? "default" : "outline"}
-              onClick={() => handleCategorySelect(category.id)}
-              className="h-auto py-3 text-sm"
-            >
-              {category.name}
-            </Button>
-          ))}
+          {/* 質問なしで録音ボタン */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setSelectedPrimary("");
+              setSelectedSecondary("");
+              onQuestionSelect("");
+            }}
+            className="w-full"
+          >
+            質問なしで録音
+          </Button>
         </div>
+      )}
 
-        {/* 質問なしで録音ボタン */}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => {
-            setSelectedCategory("");
-            setShowQuestionList(false);
-            onQuestionSelect("");
-          }}
-          className="w-full"
-        >
-          質問なしで録音
-        </Button>
-      </div>
-
-      {/* 選択されたカテゴリーの質問一覧 */}
-      {showQuestionList && selectedCategory && (
+      {/* 2次カテゴリー選択 */}
+      {showSecondaryList && !showQuestionList && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">
-              {categories.find(c => c.id === selectedCategory)?.name}
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">{selectedPrimary}</CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleBack}
+              >
+                ← 戻る
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {secondaryCategories.map((category) => (
+                <Button
+                  key={category}
+                  variant="outline"
+                  onClick={() => handleSecondaryCategorySelect(category)}
+                  className="w-full justify-start text-left h-auto py-3 px-4"
+                >
+                  {category}
+                </Button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 質問一覧 */}
+      {showQuestionList && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-xs text-gray-500">{selectedPrimary}</div>
+                <CardTitle className="text-base">{selectedSecondary}</CardTitle>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleBack}
+              >
+                ← 戻る
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-2 max-h-96 overflow-y-auto">
-              {getQuestionsByCategory(selectedCategory).map((question) => (
+              {questions.map((question) => (
                 <Button
                   key={question.id}
                   variant="outline"
@@ -151,16 +177,6 @@ export function QuestionSelector({ onQuestionSelect, selectedQuestion }: Questio
                   {question.question_text}
                 </Button>
               ))}
-            </div>
-            <div className="mt-4 pt-4 border-t">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowQuestionList(false)}
-                className="w-full"
-              >
-                閉じる
-              </Button>
             </div>
           </CardContent>
         </Card>
@@ -179,7 +195,10 @@ export function QuestionSelector({ onQuestionSelect, selectedQuestion }: Questio
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => setShowQuestionList(true)}
+                    onClick={() => {
+                      setShowSecondaryList(true);
+                      setShowQuestionList(false);
+                    }}
                   >
                     別の質問を選ぶ
                   </Button>
@@ -187,7 +206,10 @@ export function QuestionSelector({ onQuestionSelect, selectedQuestion }: Questio
                     size="sm"
                     variant="ghost"
                     onClick={() => {
-                      setSelectedCategory("");
+                      setSelectedPrimary("");
+                      setSelectedSecondary("");
+                      setShowSecondaryList(false);
+                      setShowQuestionList(false);
                       onQuestionSelect("");
                     }}
                   >
