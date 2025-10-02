@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 
 interface QuestionCategory {
   id: string;
@@ -24,15 +23,6 @@ interface QuestionSelectorProps {
   onQuestionSelect: (question: string) => void;
   selectedQuestion: string;
 }
-
-const FEELING_TYPES = {
-  interest: { label: "関心・興味", emoji: "🤔", color: "bg-blue-100 text-blue-800" },
-  hope: { label: "未来への希望", emoji: "✨", color: "bg-purple-100 text-purple-800" },
-  care: { label: "大切に思う気持ち", emoji: "💕", color: "bg-pink-100 text-pink-800" },
-  encourage: { label: "励まし・応援", emoji: "💪", color: "bg-green-100 text-green-800" },
-  gratitude: { label: "感謝", emoji: "🙏", color: "bg-yellow-100 text-yellow-800" },
-  kansai: { label: "関西弁で話そう", emoji: "🗣️", color: "bg-orange-100 text-orange-800" },
-} as const;
 
 
 export function QuestionSelector({ onQuestionSelect, selectedQuestion }: QuestionSelectorProps) {
