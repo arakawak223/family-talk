@@ -55,6 +55,10 @@ export default function SettingsPage() {
       await upsertProfile(formData);
       setSuccess("プロフィールを更新しました");
       await loadProfile();
+      // 1秒後にダッシュボードに戻る
+      setTimeout(() => {
+        router.push("/dashboard");
+      }, 1000);
     } catch (err) {
       setError(err instanceof Error ? err.message : "エラーが発生しました");
     } finally {
