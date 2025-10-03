@@ -46,7 +46,7 @@ export async function getFamilyVoiceMessages(familyId: string): Promise<VoiceMes
       let isListened = false;
 
       // 受信者情報を取得
-      const { data: recipients } = await supabase
+      const { data: recipients, error: recipientsError } = await supabase
         .from('message_recipients')
         .select(`
           recipient_id,
@@ -54,6 +54,10 @@ export async function getFamilyVoiceMessages(familyId: string): Promise<VoiceMes
           recipient_profile:profiles!message_recipients_recipient_id_fkey(*)
         `)
         .eq('message_id', message.id);
+
+      console.log('[getFamilyVoiceMessages] Message ID:', message.id);
+      console.log('[getFamilyVoiceMessages] Recipients data:', recipients);
+      console.log('[getFamilyVoiceMessages] Recipients error:', recipientsError);
 
       // 自分が送信したメッセージは常に「既読」とする
       if (message.sender_id === user.id) {
