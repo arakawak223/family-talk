@@ -39,19 +39,29 @@ export function RecipientSelector({
   const loadFamilyMembers = async () => {
     const supabase = createClient();
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('family_members')
       .select(`
         user_id,
-        profile:profiles!family_members_user_id_fkey(*)
+        profiles!family_members_user_id_fkey (
+          id,
+          display_name,
+          avatar_id,
+          email
+        )
       `)
       .eq('family_id', familyId)
       .neq('user_id', currentUserId); // 自分以外
 
+    if (error) {
+      console.error('メンバー取得エラー:', error);
+      return;
+    }
+
     if (data) {
       const formattedMembers: FamilyMember[] = data.map(item => ({
-        user_id: item.user_id,
-        profile: Array.isArray(item.profile) ? item.profile[0] : item.profile
+        user_id: item.user_id as string,
+        profile: (Array.isArray(item.profiles) ? item.profiles[0] : item.profiles) as Profile | null
       }));
       setMembers(formattedMembers);
       // 初期値として全員選択

@@ -53,20 +53,30 @@ export function FamilyInfo({ families, selectedFamily, onFamilyChange }: FamilyI
   const loadFamilyMembers = async () => {
     const supabase = createClient();
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('family_members')
       .select(`
         user_id,
         role,
-        profile:profiles!family_members_user_id_fkey(*)
+        profiles!family_members_user_id_fkey (
+          id,
+          display_name,
+          avatar_id,
+          email
+        )
       `)
       .eq('family_id', selectedFamily.id);
 
+    if (error) {
+      console.error('メンバー取得エラー:', error);
+      return;
+    }
+
     if (data) {
       const formattedMembers: FamilyMember[] = data.map(item => ({
-        user_id: item.user_id,
-        role: item.role,
-        profile: Array.isArray(item.profile) ? item.profile[0] : item.profile
+        user_id: item.user_id as string,
+        role: item.role as string,
+        profile: (Array.isArray(item.profiles) ? item.profiles[0] : item.profiles) as Profile | null
       }));
       setMembers(formattedMembers);
     }
