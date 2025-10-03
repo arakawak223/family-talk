@@ -52,23 +52,33 @@ export async function getCurrentUserWithFamilies() {
     .single();
 
   // 所属家族取得
-  const { data: familyMemberships } = await supabase
+  const { data: familyMemberships, error: familyError } = await supabase
     .from('family_members')
     .select(`
       families!family_members_family_id_fkey (*)
     `)
     .eq('user_id', user.id);
 
+  console.log('[getCurrentUserWithFamilies] User ID:', user.id);
+  console.log('[getCurrentUserWithFamilies] Family memberships raw:', familyMemberships);
+  console.log('[getCurrentUserWithFamilies] Family error:', familyError);
+
   const families = familyMemberships?.map(membership =>
     Array.isArray(membership.families) ? membership.families[0] : membership.families
   ).filter(Boolean) as Family[] || [];
 
-  return {
+  console.log('[getCurrentUserWithFamilies] Processed families:', families);
+
+  const result = {
     id: user.id,
     email: user.email!,
     profile,
     families: families.flat()
   } as UserWithProfile;
+
+  console.log('[getCurrentUserWithFamilies] Final result:', result);
+
+  return result;
 }
 
 // 家族招待コード生成

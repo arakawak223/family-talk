@@ -53,6 +53,8 @@ export function FamilyInfo({ families, selectedFamily, onFamilyChange }: FamilyI
   const loadFamilyMembers = async () => {
     const supabase = createClient();
 
+    console.log('[loadFamilyMembers] Loading members for family:', selectedFamily.id);
+
     const { data, error } = await supabase
       .from('family_members')
       .select(`
@@ -67,17 +69,26 @@ export function FamilyInfo({ families, selectedFamily, onFamilyChange }: FamilyI
       `)
       .eq('family_id', selectedFamily.id);
 
+    console.log('[loadFamilyMembers] Raw data:', data);
+    console.log('[loadFamilyMembers] Error:', error);
+
     if (error) {
       console.error('メンバー取得エラー:', error);
       return;
     }
 
     if (data) {
-      const formattedMembers: FamilyMember[] = data.map(item => ({
-        user_id: item.user_id as string,
-        role: item.role as string,
-        profile: (Array.isArray(item.profiles) ? item.profiles[0] : item.profiles) as Profile | null
-      }));
+      console.log('[loadFamilyMembers] Data count:', data.length);
+      const formattedMembers: FamilyMember[] = data.map(item => {
+        const formatted = {
+          user_id: item.user_id as string,
+          role: item.role as string,
+          profile: (Array.isArray(item.profiles) ? item.profiles[0] : item.profiles) as Profile | null
+        };
+        console.log('[loadFamilyMembers] Formatted member:', formatted);
+        return formatted;
+      });
+      console.log('[loadFamilyMembers] Final formatted members:', formattedMembers);
       setMembers(formattedMembers);
     }
   };
