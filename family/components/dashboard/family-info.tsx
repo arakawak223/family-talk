@@ -55,42 +55,43 @@ export function FamilyInfo({ families, selectedFamily, onFamilyChange }: FamilyI
 
     console.log('[loadFamilyMembers] Loading members for family:', selectedFamily.id);
 
-    const { data, error } = await supabase
+    // シンプルなクエリに変更
+    const { data: membersData, error: membersError } = await supabase
       .from('family_members')
-      .select(`
-        user_id,
-        role,
-        profiles!family_members_user_id_fkey (
-          id,
-          display_name,
-          avatar_id,
-          email
-        )
-      `)
+      .select('user_id, role')
       .eq('family_id', selectedFamily.id);
 
-    console.log('[loadFamilyMembers] Raw data:', data);
-    console.log('[loadFamilyMembers] Error:', error);
+    console.log('[loadFamilyMembers] Members data:', membersData);
+    console.log('[loadFamilyMembers] Members error:', membersError);
 
-    if (error) {
-      console.error('メンバー取得エラー:', error);
+    if (membersError) {
+      console.error('メンバー取得エラー:', membersError);
       return;
     }
 
-    if (data) {
-      console.log('[loadFamilyMembers] Data count:', data.length);
-      const formattedMembers: FamilyMember[] = data.map(item => {
-        const formatted = {
-          user_id: item.user_id as string,
-          role: item.role as string,
-          profile: (Array.isArray(item.profiles) ? item.profiles[0] : item.profiles) as Profile | null
-        };
-        console.log('[loadFamilyMembers] Formatted member:', formatted);
-        return formatted;
-      });
-      console.log('[loadFamilyMembers] Final formatted members:', formattedMembers);
-      setMembers(formattedMembers);
+    if (!membersData) {
+      console.log('[loadFamilyMembers] No members data');
+      return;
     }
+
+    // 各メンバーのプロフィールを個別に取得
+    const membersWithProfiles: FamilyMember[] = [];
+    for (const member of membersData) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id, display_name, avatar_id, email')
+        .eq('id', member.user_id)
+        .single();
+
+      membersWithProfiles.push({
+        user_id: member.user_id,
+        role: member.role,
+        profile: profile as Profile | null
+      });
+    }
+
+    console.log('[loadFamilyMembers] Final members with profiles:', membersWithProfiles);
+    setMembers(membersWithProfiles);
   };
 
   const copyInviteCode = async () => {

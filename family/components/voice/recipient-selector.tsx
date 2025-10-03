@@ -39,36 +39,42 @@ export function RecipientSelector({
   const loadFamilyMembers = async () => {
     const supabase = createClient();
 
-    const { data, error } = await supabase
+    const { data: membersData, error: membersError } = await supabase
       .from('family_members')
-      .select(`
-        user_id,
-        profiles!family_members_user_id_fkey (
-          id,
-          display_name,
-          avatar_id,
-          email
-        )
-      `)
+      .select('user_id')
       .eq('family_id', familyId)
       .neq('user_id', currentUserId); // 自分以外
 
-    if (error) {
-      console.error('メンバー取得エラー:', error);
+    if (membersError) {
+      console.error('メンバー取得エラー:', membersError);
       return;
     }
 
-    if (data) {
-      const formattedMembers: FamilyMember[] = data.map(item => ({
-        user_id: item.user_id as string,
-        profile: (Array.isArray(item.profiles) ? item.profiles[0] : item.profiles) as Profile | null
-      }));
-      setMembers(formattedMembers);
-      // 初期値として全員選択
-      if (selectedRecipients.length === 0) {
-        const allRecipients = data.map(m => m.user_id);
-        onRecipientsChange(allRecipients);
-      }
+    if (!membersData) {
+      return;
+    }
+
+    // 各メンバーのプロフィールを個別に取得
+    const membersWithProfiles: FamilyMember[] = [];
+    for (const member of membersData) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id, display_name, avatar_id')
+        .eq('id', member.user_id)
+        .single();
+
+      membersWithProfiles.push({
+        user_id: member.user_id,
+        profile: profile || null
+      });
+    }
+
+    setMembers(membersWithProfiles);
+
+    // 初期値として全員選択
+    if (selectedRecipients.length === 0) {
+      const allRecipients = membersData.map(m => m.user_id);
+      onRecipientsChange(allRecipients);
     }
   };
 
