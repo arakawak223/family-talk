@@ -55,11 +55,13 @@ export async function getCurrentUserWithFamilies() {
   const { data: familyMemberships } = await supabase
     .from('family_members')
     .select(`
-      families (*)
+      families!family_members_family_id_fkey (*)
     `)
     .eq('user_id', user.id);
 
-  const families = familyMemberships?.map(membership => membership.families).filter(Boolean) || [];
+  const families = familyMemberships?.map(membership =>
+    Array.isArray(membership.families) ? membership.families[0] : membership.families
+  ).filter(Boolean) as Family[] || [];
 
   return {
     id: user.id,
