@@ -69,6 +69,13 @@ export function DashboardContent({ user }: DashboardContentProps) {
           </Button>
           <Button
             variant="outline"
+            onClick={() => router.push("/settings")}
+            className="w-full sm:w-auto"
+          >
+            プロフィール設定
+          </Button>
+          <Button
+            variant="outline"
             onClick={handleManageFamily}
             className="w-full sm:w-auto"
           >
