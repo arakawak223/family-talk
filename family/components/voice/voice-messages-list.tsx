@@ -218,14 +218,14 @@ export function VoiceMessagesList({ familyId, currentUserId }: VoiceMessagesList
                       <div className="flex items-center gap-1 text-xs text-gray-500 ml-8">
                         <span>→</span>
                         <div className="flex items-center gap-1 flex-wrap">
-                          {message.recipients.map((recipient, index) => (
+                          {message.recipients?.map((recipient, index) => (
                             <span key={recipient.recipient_id} className="flex items-center gap-1">
                               <span>{getAvatarDisplay(recipient.recipient_profile?.avatar_id)}</span>
                               <span>{recipient.recipient_profile?.display_name || "家族"}</span>
                               {recipient.listened_at && (
                                 <span className="text-green-600">✓</span>
                               )}
-                              {index < message.recipients.length - 1 && <span>,</span>}
+                              {index < (message.recipients?.length ?? 0) - 1 && <span>,</span>}
                             </span>
                           ))}
                         </div>

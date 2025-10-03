@@ -63,7 +63,12 @@ export function FamilyInfo({ families, selectedFamily, onFamilyChange }: FamilyI
       .eq('family_id', selectedFamily.id);
 
     if (data) {
-      setMembers(data as FamilyMember[]);
+      const formattedMembers: FamilyMember[] = data.map(item => ({
+        user_id: item.user_id,
+        role: item.role,
+        profile: Array.isArray(item.profile) ? item.profile[0] : item.profile
+      }));
+      setMembers(formattedMembers);
     }
   };
 

@@ -49,7 +49,11 @@ export function RecipientSelector({
       .neq('user_id', currentUserId); // 自分以外
 
     if (data) {
-      setMembers(data as FamilyMember[]);
+      const formattedMembers: FamilyMember[] = data.map(item => ({
+        user_id: item.user_id,
+        profile: Array.isArray(item.profile) ? item.profile[0] : item.profile
+      }));
+      setMembers(formattedMembers);
       // 初期値として全員選択
       if (selectedRecipients.length === 0) {
         const allRecipients = data.map(m => m.user_id);

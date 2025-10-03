@@ -7,11 +7,7 @@ import {
   getPrimaryCategories,
   getSecondaryCategories,
   getQuestionsByCategory,
-  Question,
-  getQuestionCategories,
-  getAllQuestionTemplates,
-  QuestionCategory,
-  QuestionTemplate
+  Question
 } from "@/lib/questions";
 
 interface QuestionSelectorProps {
@@ -30,25 +26,15 @@ export function QuestionSelector({ onQuestionSelect, selectedQuestion }: Questio
   const [showQuestionList, setShowQuestionList] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // 元の質問テンプレート用
-  const [oldQuestionCategories, setOldQuestionCategories] = useState<QuestionCategory[]>([]);
-  const [oldQuestionTemplates, setOldQuestionTemplates] = useState<QuestionTemplate[]>([]);
-  const [showOldQuestions, setShowOldQuestions] = useState(false);
 
   useEffect(() => {
     loadPrimaryCategories();
-    loadOldQuestionCategories();
   }, []);
 
   const loadPrimaryCategories = async () => {
     const categories = await getPrimaryCategories();
     setPrimaryCategories(categories);
     setLoading(false);
-  };
-
-  const loadOldQuestionCategories = async () => {
-    const categories = await getQuestionCategories();
-    setOldQuestionCategories(categories);
   };
 
   const handlePrimaryCategorySelect = async (category: string) => {
@@ -84,18 +70,9 @@ export function QuestionSelector({ onQuestionSelect, selectedQuestion }: Questio
     } else if (showSecondaryList) {
       setShowSecondaryList(false);
       setSelectedPrimary("");
-    } else if (showOldQuestions) {
-      setShowOldQuestions(false);
     }
   };
 
-  const handleShowOldQuestions = async () => {
-    setShowOldQuestions(true);
-    setShowSecondaryList(false);
-    setShowQuestionList(false);
-    const templates = await getAllQuestionTemplates();
-    setOldQuestionTemplates(templates);
-  };
 
   if (loading) {
     return (
@@ -108,7 +85,7 @@ export function QuestionSelector({ onQuestionSelect, selectedQuestion }: Questio
   return (
     <div className="space-y-4">
       {/* 1次カテゴリー選択 */}
-      {!showSecondaryList && !showQuestionList && !showOldQuestions && (
+      {!showSecondaryList && !showQuestionList && (
         <div>
           <h3 className="font-semibold mb-3 text-base">どんなことを話したい？（ひと言しつもん例）</h3>
           <div className="grid grid-cols-2 gap-2">
@@ -193,46 +170,8 @@ export function QuestionSelector({ onQuestionSelect, selectedQuestion }: Questio
         </Card>
       )}
 
-      {/* 元の質問テンプレート一覧 */}
-      {showOldQuestions && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base">その他の質問</CardTitle>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleBack}
-              >
-                ← 戻る
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {oldQuestionTemplates.map((template) => (
-                <Button
-                  key={template.id}
-                  variant="outline"
-                  onClick={() => {
-                    handleQuestionSelect(template.question_text);
-                    setShowOldQuestions(false);
-                  }}
-                  className="w-full justify-start text-left h-auto py-3 px-4 whitespace-normal"
-                >
-                  <div className="flex flex-col items-start gap-1">
-                    <span className="text-xs text-gray-500">{template.category.name}</span>
-                    <span>{template.question_text}</span>
-                  </div>
-                </Button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* 選択された質問の表示 */}
-      {selectedQuestion && !showQuestionList && !showOldQuestions && (
+      {selectedQuestion && !showQuestionList && (
         <Card className="bg-blue-50">
           <CardContent className="p-4">
             <div className="flex items-start gap-2">
