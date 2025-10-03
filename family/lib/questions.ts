@@ -37,7 +37,7 @@ export async function getPrimaryCategories(): Promise<string[]> {
 
   const { data, error } = await supabase
     .from('questions')
-    .select('primary_category')
+    .select('primary_category, sort_order')
     .order('sort_order');
 
   if (error) {
@@ -45,8 +45,17 @@ export async function getPrimaryCategories(): Promise<string[]> {
     return [];
   }
 
-  // 重複を除いて返す
-  const uniqueCategories = [...new Set(data.map(item => item.primary_category))];
+  // 重複を除いて返す（順序を保持）
+  const seen = new Set<string>();
+  const uniqueCategories: string[] = [];
+
+  data?.forEach(item => {
+    if (!seen.has(item.primary_category)) {
+      seen.add(item.primary_category);
+      uniqueCategories.push(item.primary_category);
+    }
+  });
+
   return uniqueCategories;
 }
 

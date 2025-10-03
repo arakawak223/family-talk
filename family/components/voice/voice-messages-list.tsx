@@ -198,18 +198,38 @@ export function VoiceMessagesList({ familyId, currentUserId }: VoiceMessagesList
                 }`}
               >
                 <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    {/* アバター表示 */}
-                    <span className="text-2xl">
-                      {getAvatarDisplay(message.sender_profile?.avatar_id)}
-                    </span>
-                    <span className="font-medium text-sm">
-                      {isSentByMe ? "あなた" : message.sender_profile?.display_name || "家族"}
-                    </span>
-                    {!isSentByMe && message.is_listened && (
-                      <Badge variant="secondary" className="text-xs">
-                        開封済み
-                      </Badge>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                      {/* アバター表示 */}
+                      <span className="text-2xl">
+                        {getAvatarDisplay(message.sender_profile?.avatar_id)}
+                      </span>
+                      <span className="font-medium text-sm">
+                        {isSentByMe ? "あなた" : message.sender_profile?.display_name || "家族"}
+                      </span>
+                      {!isSentByMe && message.is_listened && (
+                        <Badge variant="secondary" className="text-xs">
+                          開封済み
+                        </Badge>
+                      )}
+                    </div>
+                    {/* 宛先表示 */}
+                    {message.recipients && message.recipients.length > 0 && (
+                      <div className="flex items-center gap-1 text-xs text-gray-500 ml-8">
+                        <span>→</span>
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {message.recipients.map((recipient, index) => (
+                            <span key={recipient.recipient_id} className="flex items-center gap-1">
+                              <span>{getAvatarDisplay(recipient.recipient_profile?.avatar_id)}</span>
+                              <span>{recipient.recipient_profile?.display_name || "家族"}</span>
+                              {recipient.listened_at && (
+                                <span className="text-green-600">✓</span>
+                              )}
+                              {index < message.recipients.length - 1 && <span>,</span>}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
                     )}
                   </div>
                   <span className="text-xs text-gray-500">

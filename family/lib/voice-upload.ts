@@ -5,7 +5,7 @@ export async function uploadVoiceMessage(
   audioBlob: Blob,
   familyId: string,
   question?: string,
-  customQuestion?: string
+  recipientIds?: string[]
 ) {
   const supabase = createClient();
 
@@ -44,8 +44,8 @@ export async function uploadVoiceMessage(
         audio_file_url: uploadData.path,
         audio_file_size: audioBlob.size,
         duration_seconds: durationSeconds,
-        custom_question: question || customQuestion,
-        is_group_message: true, // とりあえず全てグループメッセージとする
+        custom_question: question,
+        is_group_message: true
       }])
       .select()
       .single();
@@ -59,22 +59,35 @@ export async function uploadVoiceMessage(
       throw new Error(`メッセージ保存エラー: ${messageError.message}`);
     }
 
-    // 家族メンバー全員に受信レコードを作成（グループメッセージの場合）
-    const { data: familyMembers } = await supabase
-      .from('family_members')
-      .select('user_id')
-      .eq('family_id', familyId)
-      .neq('user_id', user.id); // 送信者以外
-
-    if (familyMembers && familyMembers.length > 0) {
-      const recipientRecords = familyMembers.map(member => ({
+    // 受信者レコードを作成
+    if (recipientIds && recipientIds.length > 0) {
+      // 指定された受信者のみ
+      const recipientRecords = recipientIds.map(recipientId => ({
         message_id: messageData.id,
-        recipient_id: member.user_id,
+        recipient_id: recipientId,
       }));
 
       await supabase
         .from('message_recipients')
         .insert(recipientRecords);
+    } else {
+      // 受信者が指定されていない場合は全員に送信（後方互換性）
+      const { data: familyMembers } = await supabase
+        .from('family_members')
+        .select('user_id')
+        .eq('family_id', familyId)
+        .neq('user_id', user.id); // 送信者以外
+
+      if (familyMembers && familyMembers.length > 0) {
+        const recipientRecords = familyMembers.map(member => ({
+          message_id: messageData.id,
+          recipient_id: member.user_id,
+        }));
+
+        await supabase
+          .from('message_recipients')
+          .insert(recipientRecords);
+      }
     }
 
     return {

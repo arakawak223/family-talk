@@ -9,6 +9,8 @@ import { VoiceRecorder } from "@/components/voice/voice-recorder";
 import { QuestionSelector } from "@/components/questions/question-selector";
 import { FamilyInfo } from "@/components/dashboard/family-info";
 import { VoiceMessagesList } from "@/components/voice/voice-messages-list";
+import { MessageCalendar } from "@/components/dashboard/message-calendar";
+import { RecipientSelector } from "@/components/voice/recipient-selector";
 
 interface DashboardContentProps {
   user: UserWithProfile;
@@ -19,6 +21,7 @@ export function DashboardContent({ user }: DashboardContentProps) {
   const [selectedQuestion, setSelectedQuestion] = useState<string>("");
   const [selectedFamily, setSelectedFamily] = useState(user.families[0]);
   const [refreshMessages, setRefreshMessages] = useState(0);
+  const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
   const router = useRouter();
 
   const handleManageFamily = () => {
@@ -59,6 +62,13 @@ export function DashboardContent({ user }: DashboardContentProps) {
         <div className="flex flex-col sm:flex-row gap-2">
           <Button
             variant="outline"
+            onClick={() => router.push("/")}
+            className="w-full sm:w-auto"
+          >
+            トップページ
+          </Button>
+          <Button
+            variant="outline"
             onClick={handleManageFamily}
             className="w-full sm:w-auto"
           >
@@ -95,12 +105,21 @@ export function DashboardContent({ user }: DashboardContentProps) {
                 selectedQuestion={selectedQuestion}
               />
 
+              {/* 宛先選択 */}
+              <RecipientSelector
+                familyId={selectedFamily.id}
+                currentUserId={user.profile?.id || ""}
+                selectedRecipients={selectedRecipients}
+                onRecipientsChange={setSelectedRecipients}
+              />
+
               {/* 録音開始ボタン - 中央配置で統一 */}
               <div className="flex justify-center">
                 <Button
                   onClick={() => setShowRecorder(true)}
                   className="w-full max-w-sm"
                   size="lg"
+                  disabled={selectedRecipients.length === 0}
                 >
                   🎤 録音を開始
                 </Button>
@@ -110,9 +129,11 @@ export function DashboardContent({ user }: DashboardContentProps) {
             <VoiceRecorder
               familyId={selectedFamily.id}
               question={selectedQuestion}
+              recipientIds={selectedRecipients}
               onComplete={() => {
                 setShowRecorder(false);
                 setSelectedQuestion("");
+                setSelectedRecipients([]);
                 setRefreshMessages(prev => prev + 1); // メッセージ一覧を更新
               }}
               onCancel={() => setShowRecorder(false)}
@@ -120,6 +141,14 @@ export function DashboardContent({ user }: DashboardContentProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* メッセージカレンダー */}
+      <div className="mb-8">
+        <MessageCalendar
+          familyId={selectedFamily.id}
+          userId={user.profile?.id || ""}
+        />
+      </div>
 
       {/* 最近のメッセージ */}
       <VoiceMessagesList

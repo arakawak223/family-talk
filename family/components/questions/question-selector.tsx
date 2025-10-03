@@ -110,42 +110,19 @@ export function QuestionSelector({ onQuestionSelect, selectedQuestion }: Questio
       {/* 1次カテゴリー選択 */}
       {!showSecondaryList && !showQuestionList && !showOldQuestions && (
         <div>
-          <h3 className="font-semibold mb-3">どんなことを話したい？</h3>
-          <div className="grid grid-cols-1 gap-2 mb-4">
+          <h3 className="font-semibold mb-3 text-base">どんなことを話したい？（ひと言しつもん例）</h3>
+          <div className="grid grid-cols-2 gap-2">
             {primaryCategories.map((category) => (
               <Button
                 key={category}
                 variant="outline"
                 onClick={() => handlePrimaryCategorySelect(category)}
-                className="h-auto py-4 text-base font-medium"
+                className="h-auto py-3 px-2 text-sm font-medium whitespace-normal"
               >
                 {category}
               </Button>
             ))}
-
-            {/* 元の質問テンプレートを表示 */}
-            <Button
-              variant="outline"
-              onClick={handleShowOldQuestions}
-              className="h-auto py-4 text-base font-medium border-dashed"
-            >
-              その他の質問を見る
-            </Button>
           </div>
-
-          {/* 質問なしで録音ボタン */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setSelectedPrimary("");
-              setSelectedSecondary("");
-              onQuestionSelect("");
-            }}
-            className="w-full"
-          >
-            質問なしで録音
-          </Button>
         </div>
       )}
 

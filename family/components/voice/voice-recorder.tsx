@@ -8,13 +8,14 @@ import { Badge } from "@/components/ui/badge";
 interface VoiceRecorderProps {
   familyId: string;
   question?: string;
+  recipientIds?: string[];
   onComplete: () => void;
   onCancel: () => void;
 }
 
 type RecordingState = "idle" | "recording" | "stopped" | "uploading" | "completed";
 
-export function VoiceRecorder({ familyId, question, onComplete, onCancel }: VoiceRecorderProps) {
+export function VoiceRecorder({ familyId, question, recipientIds, onComplete, onCancel }: VoiceRecorderProps) {
   const [recordingState, setRecordingState] = useState<RecordingState>("idle");
   const [recordingTime, setRecordingTime] = useState(0);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
@@ -150,7 +151,8 @@ export function VoiceRecorder({ familyId, question, onComplete, onCancel }: Voic
       const result = await uploadVoiceMessage(
         audioBlob,
         familyId,
-        question
+        question,
+        recipientIds
       );
 
       console.log('アップロード成功:', result);

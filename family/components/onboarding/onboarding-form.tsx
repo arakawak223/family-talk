@@ -351,7 +351,13 @@ export function OnboardingForm() {
         </Card>
 
         {families.length > 0 && (
-          <div className="text-center">
+          <div className="text-center flex gap-2 justify-center">
+            <Button
+              onClick={() => router.push("/")}
+              variant="outline"
+            >
+              トップページ
+            </Button>
             <Button
               onClick={() => router.push("/dashboard")}
               variant="outline"

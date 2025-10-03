@@ -7,6 +7,11 @@ type Profile = Database['public']['Tables']['profiles']['Row'];
 export interface VoiceMessageWithProfile extends VoiceMessage {
   sender_profile: Profile | null;
   is_listened: boolean;
+  recipients?: Array<{
+    recipient_id: string;
+    recipient_profile: Profile | null;
+    listened_at: string | null;
+  }>;
 }
 
 // 家族のボイスメッセージを取得（受信・送信両方）
@@ -34,31 +39,40 @@ export async function getFamilyVoiceMessages(familyId: string): Promise<VoiceMes
       throw new Error(`メッセージ取得エラー: ${messagesError.message}`);
     }
 
-    // 各メッセージの既読状態をチェック
+    // 各メッセージの既読状態と受信者情報をチェック
     const messagesWithStatus: VoiceMessageWithProfile[] = [];
 
     for (const message of messages || []) {
       let isListened = false;
+
+      // 受信者情報を取得
+      const { data: recipients } = await supabase
+        .from('message_recipients')
+        .select(`
+          recipient_id,
+          listened_at,
+          recipient_profile:profiles!message_recipients_recipient_id_fkey(*)
+        `)
+        .eq('message_id', message.id);
 
       // 自分が送信したメッセージは常に「既読」とする
       if (message.sender_id === user.id) {
         isListened = true;
       } else {
         // 他人のメッセージは受信レコードの既読状態をチェック
-        const { data: recipient } = await supabase
-          .from('message_recipients')
-          .select('listened_at')
-          .eq('message_id', message.id)
-          .eq('recipient_id', user.id)
-          .maybeSingle();
-
-        isListened = !!recipient?.listened_at;
+        const myRecipient = recipients?.find(r => r.recipient_id === user.id);
+        isListened = !!myRecipient?.listened_at;
       }
 
       messagesWithStatus.push({
         ...message,
         sender_profile: message.sender_profile,
         is_listened: isListened,
+        recipients: recipients?.map(r => ({
+          recipient_id: r.recipient_id,
+          recipient_profile: r.recipient_profile,
+          listened_at: r.listened_at,
+        })) || [],
       });
     }
 

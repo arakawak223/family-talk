@@ -7,20 +7,30 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { joinFamilyByInviteCode } from "@/lib/auth-client";
+import { AvatarSelector } from "@/components/profile/avatar-selector";
+import { getAvatarDisplay } from "@/lib/avatars";
 
 export default function JoinFamilyPage() {
   const router = useRouter();
   const [inviteCode, setInviteCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [selectedAvatarId, setSelectedAvatarId] = useState<string>("");
+  const [showAvatarSelector, setShowAvatarSelector] = useState(false);
 
   const handleJoinFamily = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!selectedAvatarId) {
+      setError("アバターを選択してください");
+      return;
+    }
+
     setLoading(true);
     setError("");
 
     try {
-      await joinFamilyByInviteCode(inviteCode);
+      await joinFamilyByInviteCode(inviteCode, selectedAvatarId);
       router.push("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "エラーが発生しました");
@@ -28,6 +38,21 @@ export default function JoinFamilyPage() {
       setLoading(false);
     }
   };
+
+  if (showAvatarSelector) {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-6">
+        <AvatarSelector
+          currentAvatarId={selectedAvatarId}
+          onAvatarSelect={(avatarId) => {
+            setSelectedAvatarId(avatarId);
+            setShowAvatarSelector(false);
+          }}
+          onClose={() => setShowAvatarSelector(false)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center p-6">
@@ -56,6 +81,25 @@ export default function JoinFamilyPage() {
                 <p className="text-sm text-gray-600 mt-2">
                   家族から送られた6文字の招待コードを入力してください
                 </p>
+              </div>
+
+              <div>
+                <Label>あなたのアバター *</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowAvatarSelector(true)}
+                  className="w-full h-auto py-4 mt-2"
+                >
+                  {selectedAvatarId ? (
+                    <div className="flex items-center gap-3">
+                      <span className="text-4xl">{getAvatarDisplay(selectedAvatarId)}</span>
+                      <span>アバターを変更</span>
+                    </div>
+                  ) : (
+                    <span>アバターを選択してください</span>
+                  )}
+                </Button>
               </div>
 
               {error && (

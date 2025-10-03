@@ -80,7 +80,7 @@ export async function createFamily(name: string, description?: string) {
 }
 
 // 家族招待コードで参加
-export async function joinFamilyByInviteCode(inviteCode: string) {
+export async function joinFamilyByInviteCode(inviteCode: string, avatarId?: string) {
   const supabase = createClient();
 
   const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -111,6 +111,17 @@ export async function joinFamilyByInviteCode(inviteCode: string) {
 
   if (existingMember) {
     throw new Error('既にこの家族に参加しています');
+  }
+
+  // アバターIDが指定されている場合はプロフィールを更新
+  if (avatarId) {
+    await supabase
+      .from('profiles')
+      .upsert([{
+        id: user.id,
+        email: user.email!,
+        avatar_id: avatarId
+      }]);
   }
 
   // 家族メンバーとして追加
@@ -256,5 +267,42 @@ export async function leaveFamily(familyId: string) {
 
   if (deleteError) {
     throw new Error(`退出エラー: ${deleteError.message}`);
+  }
+}
+
+// メンバーを削除（管理者のみ）
+export async function removeFamilyMember(familyId: string, targetUserId: string) {
+  const supabase = createClient();
+
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) {
+    throw new Error('認証が必要です');
+  }
+
+  // 管理者権限チェック
+  const { data: membership, error: checkError } = await supabase
+    .from('family_members')
+    .select('*')
+    .eq('family_id', familyId)
+    .eq('user_id', user.id)
+    .single();
+
+  if (checkError || !membership) {
+    throw new Error('この家族グループにアクセスできません');
+  }
+
+  if (membership.role !== 'admin') {
+    throw new Error('管理者のみがメンバーを削除できます');
+  }
+
+  // メンバーを削除
+  const { error: deleteError } = await supabase
+    .from('family_members')
+    .delete()
+    .eq('family_id', familyId)
+    .eq('user_id', targetUserId);
+
+  if (deleteError) {
+    throw new Error(`メンバー削除エラー: ${deleteError.message}`);
   }
 }

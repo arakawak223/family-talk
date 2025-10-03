@@ -1,16 +1,21 @@
 -- 質問データベース v5
 -- 2段階カテゴリー構造: 1次カテゴリー → 2次カテゴリー → 質問（177問）
+--
+-- 注意：このSQLは新しい「questions」テーブルを作成します
+-- 既存の「question_templates」と「question_categories」テーブルには影響しません
+-- 両方のテーブルシステムが併用されます
 
--- テーブル作成
+-- テーブル作成（既存のquestion_templatesとは別テーブル）
 CREATE TABLE IF NOT EXISTS questions (
   id SERIAL PRIMARY KEY,
   primary_category TEXT NOT NULL,
   secondary_category TEXT NOT NULL,
   question_text TEXT NOT NULL,
-  sort_order INTEGER NOT NULL
+  sort_order INTEGER NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
 );
 
--- 既存データを削除
+-- questionsテーブルの既存データを削除（question_templatesには影響しません）
 TRUNCATE TABLE questions RESTART IDENTITY;
 
 -- ============================================
