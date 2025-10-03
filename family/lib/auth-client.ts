@@ -113,30 +113,37 @@ export async function joinFamilyByInviteCode(inviteCode: string, avatarId?: stri
     throw new Error('既にこの家族に参加しています');
   }
 
-  // アバターIDが指定されている場合はプロフィールを更新
-  if (avatarId) {
-    await supabase
-      .from('profiles')
-      .upsert([{
-        id: user.id,
-        email: user.email!,
-        avatar_id: avatarId
-      }]);
+  // プロフィールを作成/更新
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .upsert([{
+      id: user.id,
+      email: user.email!,
+      avatar_id: avatarId || null,
+      display_name: user.email?.split('@')[0] || 'ユーザー'
+    }]);
+
+  if (profileError) {
+    console.error('プロフィール作成エラー:', profileError);
   }
 
   // 家族メンバーとして追加
-  const { error: memberError } = await supabase
+  console.log('家族メンバー追加:', { family_id: family.id, user_id: user.id });
+  const { data: memberData, error: memberError } = await supabase
     .from('family_members')
     .insert([{
       family_id: family.id,
       user_id: user.id,
       role: 'member'
-    }]);
+    }])
+    .select();
 
   if (memberError) {
+    console.error('家族メンバー追加エラー:', memberError);
     throw new Error(`家族参加エラー: ${memberError.message}`);
   }
 
+  console.log('家族メンバー追加成功:', memberData);
   return family;
 }
 
