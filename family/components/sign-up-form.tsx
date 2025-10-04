@@ -15,11 +15,16 @@ import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { AvatarSelector } from "@/components/profile/avatar-selector";
+import { updateAvatar } from "@/lib/auth-client";
+
+type SignUpStep = "account" | "avatar";
 
 export function SignUpForm({
   className,
   ...props
 }: React.ComponentPropsWithoutRef<"div">) {
+  const [step, setStep] = useState<SignUpStep>("account");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [repeatPassword, setRepeatPassword] = useState("");
@@ -48,6 +53,22 @@ export function SignUpForm({
         },
       });
       if (error) throw error;
+
+      // サインアップ成功後、アイコン選択画面に移動
+      setStep("avatar");
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : "An error occurred");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAvatarSelect = async (avatarId: string) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      await updateAvatar(avatarId);
       router.push("/auth/sign-up-success");
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred");
@@ -56,6 +77,27 @@ export function SignUpForm({
     }
   };
 
+  // アバター選択画面
+  if (step === "avatar") {
+    return (
+      <div className={cn("flex flex-col gap-6", className)} {...props}>
+        {isLoading && (
+          <div className="text-center py-4 text-gray-500">保存中...</div>
+        )}
+        {error && (
+          <div className="mb-4 text-red-600 text-sm text-center bg-red-50 p-3 rounded">
+            {error}
+          </div>
+        )}
+        <AvatarSelector
+          currentAvatarId={null}
+          onAvatarSelect={handleAvatarSelect}
+        />
+      </div>
+    );
+  }
+
+  // アカウント作成画面
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>

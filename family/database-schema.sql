@@ -146,6 +146,16 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+-- トリガー関数：新規ユーザーのプロフィール自動作成
+CREATE OR REPLACE FUNCTION handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email)
+  VALUES (NEW.id, NEW.email);
+  RETURN NEW;
+END;
+$$ language 'plpgsql' SECURITY DEFINER;
+
 -- トリガー作成
 CREATE TRIGGER update_profiles_updated_at
   BEFORE UPDATE ON profiles
@@ -154,3 +164,8 @@ CREATE TRIGGER update_profiles_updated_at
 CREATE TRIGGER update_families_updated_at
   BEFORE UPDATE ON families
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- 新規ユーザー作成時にプロフィールを自動作成
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION handle_new_user();
