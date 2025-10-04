@@ -1,20 +1,20 @@
--- メッセージ受信者ポリシー修正 - 送信者が受信者情報を表示可能にする
--- Supabase SQL Editorで実行してください
+-- Message recipients policy fix - Allow senders to view recipient information
+-- Execute this in Supabase SQL Editor
 
--- 既存のポリシーを削除
+-- Drop existing policies
 DROP POLICY IF EXISTS "Users can view their message receipts" ON message_recipients;
 DROP POLICY IF EXISTS "Users can update their message receipts" ON message_recipients;
 
--- 新しいポリシーを作成
+-- Create new policies
 
--- 1. 自分が受信者として登録されているレコード、または自分が送信したメッセージの受信者情報を表示可能
+-- 1. Users can view recipient records where they are the recipient OR the sender
 CREATE POLICY "Users can view message recipients" ON message_recipients
   FOR SELECT
   USING (
-    -- 自分が受信者の場合
+    -- If user is the recipient
     auth.uid() = recipient_id
     OR
-    -- 自分が送信者の場合（送信したメッセージの受信者情報を見られる）
+    -- If user is the sender (can see recipients of their own messages)
     EXISTS (
       SELECT 1
       FROM voice_messages
@@ -23,13 +23,13 @@ CREATE POLICY "Users can view message recipients" ON message_recipients
     )
   );
 
--- 2. 自分の受信レコードのみ更新可能（既読マーク用）
+-- 2. Users can update only their own recipient records (for marking as read)
 CREATE POLICY "Users can update own receipts" ON message_recipients
   FOR UPDATE
   USING (auth.uid() = recipient_id)
   WITH CHECK (auth.uid() = recipient_id);
 
--- 3. メッセージ送信時に受信者レコードを作成可能
+-- 3. Senders can create recipient records when sending messages
 CREATE POLICY "Senders can create recipient records" ON message_recipients
   FOR INSERT
   WITH CHECK (
