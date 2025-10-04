@@ -8,10 +8,22 @@ import {
   getFamilyVoiceMessages,
   markMessageAsListened,
   getVoiceMessageUrl,
+  deleteVoiceMessage,
   VoiceMessageWithProfile
 } from "@/lib/voice-messages";
 import { getAvatarDisplay } from "@/lib/avatars";
 import { VoiceEnvelope } from "./voice-envelope";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface VoiceMessagesListProps {
   familyId: string;
@@ -80,6 +92,22 @@ export function VoiceMessagesList({ familyId, currentUserId }: VoiceMessagesList
       console.error('音声再生エラー:', err);
       setPlayingMessageId(null);
       alert("音声の再生に失敗しました");
+    }
+  };
+
+  // メッセージ削除
+  const handleDeleteMessage = async (messageId: string) => {
+    try {
+      setLoading(true);
+      setError("");
+      await deleteVoiceMessage(messageId);
+      // メッセージリストから削除
+      setMessages(prev => prev.filter(m => m.id !== messageId));
+    } catch (err) {
+      console.error('メッセージ削除エラー:', err);
+      setError(err instanceof Error ? err.message : "メッセージの削除に失敗しました");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -261,6 +289,38 @@ export function VoiceMessagesList({ familyId, currentUserId }: VoiceMessagesList
                     <span className="text-xs text-gray-400">
                       {Math.round(message.audio_file_size / 1024)}KB
                     </span>
+                  )}
+
+                  {/* 削除ボタン（自分のメッセージのみ） */}
+                  {isSentByMe && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          🗑️ 削除
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>メッセージを削除しますか？</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            この操作は取り消せません。メッセージと音声ファイルが完全に削除されます。
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>キャンセル</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDeleteMessage(message.id)}
+                            className="bg-red-600 hover:bg-red-700"
+                          >
+                            削除する
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   )}
                 </div>
               </div>

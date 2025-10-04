@@ -124,3 +124,56 @@ export async function getVoiceMessageUrl(filePath: string): Promise<string> {
 
   return data.signedUrl;
 }
+
+// メッセージを削除する（送信者のみ）
+export async function deleteVoiceMessage(messageId: string): Promise<void> {
+  const supabase = createClient();
+
+  try {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      throw new Error('認証が必要です');
+    }
+
+    // メッセージ情報を取得して、送信者であることを確認
+    const { data: message, error: fetchError } = await supabase
+      .from('voice_messages')
+      .select('sender_id, audio_file_url')
+      .eq('id', messageId)
+      .single();
+
+    if (fetchError) {
+      throw new Error(`メッセージ取得エラー: ${fetchError.message}`);
+    }
+
+    if (message.sender_id !== user.id) {
+      throw new Error('自分のメッセージのみ削除できます');
+    }
+
+    // 音声ファイルを削除
+    if (message.audio_file_url) {
+      const { error: storageError } = await supabase.storage
+        .from('voice-messages')
+        .remove([message.audio_file_url]);
+
+      if (storageError) {
+        console.error('音声ファイル削除エラー:', storageError);
+        // ストレージ削除エラーは続行（データベースは削除する）
+      }
+    }
+
+    // データベースからメッセージを削除（受信者レコードはカスケード削除される）
+    const { error: deleteError } = await supabase
+      .from('voice_messages')
+      .delete()
+      .eq('id', messageId);
+
+    if (deleteError) {
+      throw new Error(`メッセージ削除エラー: ${deleteError.message}`);
+    }
+
+  } catch (error) {
+    console.error('メッセージ削除エラー:', error);
+    throw error;
+  }
+}
