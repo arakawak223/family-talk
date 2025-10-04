@@ -232,7 +232,13 @@ export function OnboardingForm() {
         )}
         <AvatarSelector
           currentAvatarId={null}
+          currentAvatarType={null}
+          currentAvatarPhotoUrl={null}
           onAvatarSelect={handleAvatarSelect}
+          onPhotoUpload={async () => {
+            await loadFamilies();
+            setStep("manage-families");
+          }}
         />
       </div>
     );

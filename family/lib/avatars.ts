@@ -69,11 +69,28 @@ export function getDefaultAvatar(): Avatar {
   return AVATAR_LIST[0]; // 最初のねこ
 }
 
-// アバター表示用の関数
+// アバター表示用の関数（絵文字のみ）
 export function getAvatarDisplay(avatarId?: string | null): string {
   if (!avatarId) return getDefaultAvatar().emoji;
   const avatar = getAvatarById(avatarId);
   return avatar ? avatar.emoji : getDefaultAvatar().emoji;
+}
+
+// プロフィール情報から適切なアバターを表示
+export function getProfileAvatar(profile: { avatar_type?: string | null; avatar_photo_url?: string | null; avatar_id?: string | null }): { type: 'emoji' | 'photo'; content: string } {
+  // 写真アバターの場合
+  if (profile.avatar_type === 'photo' && profile.avatar_photo_url) {
+    return {
+      type: 'photo',
+      content: profile.avatar_photo_url
+    };
+  }
+
+  // 絵文字アバターの場合（デフォルト）
+  return {
+    type: 'emoji',
+    content: getAvatarDisplay(profile.avatar_id)
+  };
 }
 
 // カテゴリ別のアバター取得

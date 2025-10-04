@@ -91,7 +91,10 @@ export function SignUpForm({
         )}
         <AvatarSelector
           currentAvatarId={null}
+          currentAvatarType={null}
+          currentAvatarPhotoUrl={null}
           onAvatarSelect={handleAvatarSelect}
+          onPhotoUpload={() => router.push("/auth/sign-up-success")}
         />
       </div>
     );

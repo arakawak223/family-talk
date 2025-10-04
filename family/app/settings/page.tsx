@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCurrentUserProfile, upsertProfile, updateAvatar } from "@/lib/auth-client";
 import { AvatarSelector } from "@/components/profile/avatar-selector";
-import { getAvatarDisplay } from "@/lib/avatars";
+import { getProfileAvatar } from "@/lib/avatars";
 import { Database } from "@/lib/types/database";
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
@@ -104,7 +104,10 @@ export default function SettingsPage() {
           )}
           <AvatarSelector
             currentAvatarId={profile?.avatar_id || null}
+            currentAvatarType={profile?.avatar_type || null}
+            currentAvatarPhotoUrl={profile?.avatar_photo_url || null}
             onAvatarSelect={handleAvatarSelect}
+            onPhotoUpload={loadProfile}
           />
         </div>
       </div>
@@ -132,9 +135,20 @@ export default function SettingsPage() {
             <div>
               <Label>アバター</Label>
               <div className="flex items-center gap-4 mt-2">
-                <div className="text-6xl">
-                  {getAvatarDisplay(profile?.avatar_id || null)}
-                </div>
+                {(() => {
+                  const avatar = getProfileAvatar({
+                    avatar_type: profile?.avatar_type,
+                    avatar_photo_url: profile?.avatar_photo_url,
+                    avatar_id: profile?.avatar_id
+                  });
+                  return avatar.type === 'photo' ? (
+                    <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-gray-300">
+                      <img src={avatar.content} alt="アバター" className="w-full h-full object-cover" />
+                    </div>
+                  ) : (
+                    <div className="text-6xl">{avatar.content}</div>
+                  );
+                })()}
                 <Button
                   type="button"
                   variant="outline"
