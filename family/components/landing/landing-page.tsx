@@ -31,7 +31,7 @@ export function LandingPage() {
             ひと言しつもんアプリ
           </h1>
           <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-            離れて暮らす家族や引きこもりがちな家族と、<br />
+            離れて暮らす家族などと、<br />
             「どんな〇〇？」の質問を通じて温かいコミュニケーションを
           </p>
           <div className="space-y-4">
