@@ -81,7 +81,7 @@ export function VoiceMessagesList({ familyId, currentUserId }: VoiceMessagesList
 
       // 他人からのメッセージの場合は既読にする
       if (message.sender_id !== currentUserId && !message.is_listened) {
-        await markMessageAsListened(message.id);
+        await markMessageAsListened(message.id, familyId);
         // 既読状態を更新
         setMessages(prev => prev.map(m =>
           m.id === message.id ? { ...m, is_listened: true } : m

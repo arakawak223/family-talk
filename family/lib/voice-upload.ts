@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { addPoints, checkAndUpdateStreak } from "@/lib/api/points";
 
 // 音声ファイルのアップロードと保存
 export async function uploadVoiceMessage(
@@ -88,6 +89,16 @@ export async function uploadVoiceMessage(
           .from('message_recipients')
           .insert(recipientRecords);
       }
+    }
+
+    // ポイントを付与（メッセージ送信）
+    try {
+      await addPoints(user.id, familyId, 'send', messageData.id);
+      // ストリークをチェック＆更新
+      await checkAndUpdateStreak(user.id, familyId);
+    } catch (pointsError) {
+      console.error('ポイント付与エラー:', pointsError);
+      // ポイント付与エラーでもメッセージ送信自体は成功とする
     }
 
     return {

@@ -11,6 +11,7 @@ import { FamilyInfo } from "@/components/dashboard/family-info";
 import { VoiceMessagesList } from "@/components/voice/voice-messages-list";
 import { MessageCalendar } from "@/components/dashboard/message-calendar";
 import { RecipientSelector } from "@/components/voice/recipient-selector";
+import { SugorokuBoard } from "@/components/sugoroku/sugoroku-board";
 
 interface DashboardContentProps {
   user: UserWithProfile;
@@ -148,6 +149,14 @@ export function DashboardContent({ user }: DashboardContentProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* 双六ボード */}
+      <div className="mb-8">
+        <SugorokuBoard
+          userId={user.profile?.id || ""}
+          familyId={selectedFamily.id}
+        />
+      </div>
 
       {/* メッセージカレンダー */}
       <div className="mb-8">

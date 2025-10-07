@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 import { Database } from "@/lib/types/database";
+import { addPoints, checkAllListenedBonus } from "@/lib/api/points";
 
 type VoiceMessage = Database['public']['Tables']['voice_messages']['Row'];
 type Profile = Database['public']['Tables']['profiles']['Row'];
@@ -85,13 +86,26 @@ export async function getFamilyVoiceMessages(familyId: string): Promise<VoiceMes
 }
 
 // メッセージを既読にする
-export async function markMessageAsListened(messageId: string): Promise<void> {
+export async function markMessageAsListened(messageId: string, familyId?: string): Promise<void> {
   const supabase = createClient();
 
   try {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
       throw new Error('認証が必要です');
+    }
+
+    // 既読状態を確認
+    const { data: existingRecipient } = await supabase
+      .from('message_recipients')
+      .select('listened_at')
+      .eq('message_id', messageId)
+      .eq('recipient_id', user.id)
+      .single();
+
+    // 既に既読の場合は何もしない
+    if (existingRecipient?.listened_at) {
+      return;
     }
 
     const { error } = await supabase
@@ -102,6 +116,29 @@ export async function markMessageAsListened(messageId: string): Promise<void> {
 
     if (error) {
       throw new Error(`既読更新エラー: ${error.message}`);
+    }
+
+    // ポイント付与（メッセージを聴いた）
+    if (familyId) {
+      try {
+        // メッセージ情報を取得して送信者を確認
+        const { data: message } = await supabase
+          .from('voice_messages')
+          .select('sender_id')
+          .eq('id', messageId)
+          .single();
+
+        if (message) {
+          // 聴いた人にポイント付与
+          await addPoints(user.id, familyId, 'listen', messageId);
+
+          // 送信者：全員が聴いたかチェック
+          await checkAllListenedBonus(messageId, message.sender_id, familyId);
+        }
+      } catch (pointsError) {
+        console.error('ポイント付与エラー:', pointsError);
+        // ポイント付与エラーでも既読更新自体は成功とする
+      }
     }
 
   } catch (error) {

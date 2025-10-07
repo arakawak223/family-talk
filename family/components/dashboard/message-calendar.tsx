@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
+import { getMonthEvents } from "@/lib/api/events";
+import { CalendarEvent } from "@/lib/types/events";
 
 interface MessageStats {
   date: string;
@@ -17,10 +19,12 @@ interface MessageCalendarProps {
 
 export function MessageCalendar({ familyId, userId }: MessageCalendarProps) {
   const [stats, setStats] = useState<MessageStats[]>([]);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
   useEffect(() => {
     loadMessageStats();
+    loadEvents();
   }, [familyId, currentMonth]);
 
   const loadMessageStats = async () => {
@@ -67,6 +71,13 @@ export function MessageCalendar({ familyId, userId }: MessageCalendarProps) {
     setStats(Array.from(statsMap.values()));
   };
 
+  const loadEvents = async () => {
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth() + 1;
+    const eventsData = await getMonthEvents(familyId, year, month);
+    setEvents(eventsData);
+  };
+
   const getDaysInMonth = () => {
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
@@ -93,6 +104,12 @@ export function MessageCalendar({ familyId, userId }: MessageCalendarProps) {
     if (!date) return null;
     const dateStr = date.toISOString().split('T')[0];
     return stats.find(s => s.date === dateStr);
+  };
+
+  const getEventsForDate = (date: Date | null) => {
+    if (!date) return [];
+    const dateStr = date.toISOString().split('T')[0];
+    return events.filter(e => e.event_date === dateStr);
   };
 
   const previousMonth = () => {
@@ -132,6 +149,7 @@ export function MessageCalendar({ familyId, userId }: MessageCalendarProps) {
           {/* カレンダーの日付 */}
           {days.map((date, index) => {
             const stat = getStatsForDate(date);
+            const dayEvents = getEventsForDate(date);
             const isToday = date && date.toDateString() === new Date().toDateString();
 
             return (
@@ -141,11 +159,28 @@ export function MessageCalendar({ familyId, userId }: MessageCalendarProps) {
                   aspect-square p-1 border rounded text-xs
                   ${date ? 'bg-white' : 'bg-gray-50'}
                   ${isToday ? 'border-blue-500 border-2' : 'border-gray-200'}
+                  ${dayEvents.length > 0 ? 'bg-pink-50' : ''}
                 `}
               >
                 {date && (
                   <div className="h-full flex flex-col">
                     <div className="font-medium">{date.getDate()}</div>
+
+                    {/* イベント表示 */}
+                    {dayEvents.length > 0 && (
+                      <div className="flex flex-wrap gap-0.5 mb-1">
+                        {dayEvents.slice(0, 2).map((event, idx) => (
+                          <span key={idx} title={event.title} className="text-base">
+                            {event.icon || '📌'}
+                          </span>
+                        ))}
+                        {dayEvents.length > 2 && (
+                          <span className="text-xs text-gray-500">+{dayEvents.length - 2}</span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* メッセージ統計 */}
                     {stat && (
                       <div className="flex-1 flex flex-col justify-center text-xs">
                         {stat.sent > 0 && (
@@ -164,7 +199,7 @@ export function MessageCalendar({ familyId, userId }: MessageCalendarProps) {
         </div>
 
         {/* 凡例 */}
-        <div className="mt-4 flex gap-4 text-xs text-gray-600">
+        <div className="mt-4 flex flex-wrap gap-4 text-xs text-gray-600">
           <div className="flex items-center gap-1">
             <span className="text-blue-600">↑</span>
             <span>送信</span>
@@ -172,6 +207,14 @@ export function MessageCalendar({ familyId, userId }: MessageCalendarProps) {
           <div className="flex items-center gap-1">
             <span className="text-green-600">↓</span>
             <span>受信</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span>🎂</span>
+            <span>誕生日</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span>📌</span>
+            <span>イベント</span>
           </div>
         </div>
       </CardContent>
