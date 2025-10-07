@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 
 // 管理者のメールアドレスリスト（環境変数で管理することを推奨）
-const ADMIN_EMAILS = process.env.ADMIN_EMAILS?.split(',') || [];
+const ADMIN_EMAILS = process.env.ADMIN_EMAILS?.split(',').map(email => email.trim()) || [];
 
 /**
  * 現在のユーザーが管理者かどうかをチェック
