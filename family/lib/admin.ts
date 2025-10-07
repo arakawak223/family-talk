@@ -10,19 +10,9 @@ export async function isAdmin(): Promise<boolean> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  console.log('[isAdmin] User email:', user?.email);
-  console.log('[isAdmin] ADMIN_EMAILS array:', ADMIN_EMAILS);
-  console.log('[isAdmin] process.env.ADMIN_EMAILS:', process.env.ADMIN_EMAILS);
+  if (!user?.email) return false;
 
-  if (!user?.email) {
-    console.log('[isAdmin] No user email found');
-    return false;
-  }
-
-  const result = ADMIN_EMAILS.includes(user.email);
-  console.log('[isAdmin] Check result:', result);
-
-  return result;
+  return ADMIN_EMAILS.includes(user.email);
 }
 
 /**

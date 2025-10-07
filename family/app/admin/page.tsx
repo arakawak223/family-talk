@@ -7,14 +7,9 @@ export default async function AdminPage() {
   // 管理者権限チェック
   const hasAdminAccess = await isAdmin();
 
-  console.log('[AdminPage] hasAdminAccess:', hasAdminAccess);
-
   if (!hasAdminAccess) {
-    console.log('[AdminPage] Redirecting to /auth/login');
     redirect("/auth/login");
   }
-
-  console.log('[AdminPage] Access granted, loading admin page');
 
   // データ取得
   const [systemStats, families] = await Promise.all([
