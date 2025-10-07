@@ -8,7 +8,7 @@ import { ArrowLeft } from "lucide-react";
 export default async function FamilyDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   // 管理者権限チェック
   const hasAdminAccess = await isAdmin();
@@ -17,8 +17,11 @@ export default async function FamilyDetailPage({
     redirect("/dashboard");
   }
 
+  // paramsをawait
+  const { id } = await params;
+
   // 家族詳細データを取得
-  const familyData = await getFamilyDetails(params.id);
+  const familyData = await getFamilyDetails(id);
 
   return (
     <div className="container mx-auto py-8 space-y-6">

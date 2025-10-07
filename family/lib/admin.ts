@@ -39,7 +39,15 @@ export async function getAllFamiliesWithStats() {
 
   // 各家族の統計情報を取得
   const familiesWithStats = await Promise.all(
-    (families || []).map(async (family) => {
+    (families || []).map(async (familyRaw) => {
+      // profilesを配列から単一オブジェクトに変換
+      const family = {
+        ...familyRaw,
+        profiles: Array.isArray(familyRaw.profiles)
+          ? familyRaw.profiles[0] || null
+          : familyRaw.profiles || null
+      };
+
       // メンバー数を取得
       const { count: memberCount } = await supabase
         .from('family_members')
@@ -93,7 +101,7 @@ export async function getFamilyDetails(familyId: string) {
   const supabase = await createClient();
 
   // 家族情報を取得
-  const { data: family, error: familyError } = await supabase
+  const { data: familyRaw, error: familyError } = await supabase
     .from('families')
     .select(`
       id,
@@ -101,6 +109,7 @@ export async function getFamilyDetails(familyId: string) {
       description,
       invite_code,
       created_at,
+      created_by,
       profiles!families_created_by_fkey(display_name, email)
     `)
     .eq('id', familyId)
@@ -108,8 +117,16 @@ export async function getFamilyDetails(familyId: string) {
 
   if (familyError) throw familyError;
 
+  // profilesを配列から単一オブジェクトに変換
+  const family = {
+    ...familyRaw,
+    profiles: Array.isArray(familyRaw?.profiles)
+      ? familyRaw.profiles[0] || null
+      : familyRaw?.profiles || null
+  };
+
   // メンバー情報を取得
-  const { data: members, error: membersError } = await supabase
+  const { data: membersRaw, error: membersError } = await supabase
     .from('family_members')
     .select(`
       id,
@@ -128,6 +145,14 @@ export async function getFamilyDetails(familyId: string) {
     .order('joined_at', { ascending: true });
 
   if (membersError) throw membersError;
+
+  // profilesを配列から単一オブジェクトに変換
+  const members = membersRaw?.map(member => ({
+    ...member,
+    profiles: Array.isArray(member.profiles)
+      ? member.profiles[0] || null
+      : member.profiles || null
+  })) || [];
 
   // メッセージ統計を取得
   const { data: messages, error: messagesError } = await supabase
