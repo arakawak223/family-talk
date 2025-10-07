@@ -8,7 +8,7 @@ export default async function AdminPage() {
   const hasAdminAccess = await isAdmin();
 
   if (!hasAdminAccess) {
-    redirect("/dashboard");
+    redirect("/auth/login");
   }
 
   // データ取得

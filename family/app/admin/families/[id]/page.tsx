@@ -14,7 +14,7 @@ export default async function FamilyDetailPage({
   const hasAdminAccess = await isAdmin();
 
   if (!hasAdminAccess) {
-    redirect("/dashboard");
+    redirect("/auth/login");
   }
 
   // paramsをawait
