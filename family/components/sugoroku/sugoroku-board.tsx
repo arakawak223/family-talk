@@ -8,11 +8,13 @@ import {
   SugorokuSquare,
   UserBoardProgressWithBoard,
   FamilyRanking,
+  UserGift,
 } from "@/lib/types/sugoroku";
 import {
   getUserProgress,
   getBoardSquares,
   getFamilyRanking,
+  getUserGifts,
 } from "@/lib/api/sugoroku";
 import { getUserPoints } from "@/lib/api/points";
 import { SugorokuSquareItem } from "./sugoroku-square";
@@ -28,8 +30,10 @@ export function SugorokuBoard({ userId, familyId }: SugorokuBoardProps) {
   const [squares, setSquares] = useState<SugorokuSquare[]>([]);
   const [ranking, setRanking] = useState<FamilyRanking[]>([]);
   const [currentPoints, setCurrentPoints] = useState(0);
+  const [userGifts, setUserGifts] = useState<UserGift[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDiceRoller, setShowDiceRoller] = useState(false);
+  const [initLoading, setInitLoading] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -57,6 +61,11 @@ export function SugorokuBoard({ userId, familyId }: SugorokuBoardProps) {
       // ランキングを取得
       const rankingData = await getFamilyRanking(familyId);
       setRanking(rankingData);
+
+      // ユーザーのギフトを取得
+      const giftsData = await getUserGifts(userId);
+      console.log('User gifts loaded:', giftsData);
+      setUserGifts(giftsData);
     } catch (error) {
       console.error("Error loading sugoroku data:", error);
     } finally {
@@ -67,6 +76,30 @@ export function SugorokuBoard({ userId, familyId }: SugorokuBoardProps) {
   const handleRollComplete = () => {
     setShowDiceRoller(false);
     loadData(); // データを再読み込み
+  };
+
+  const handleInitSugoroku = async () => {
+    if (!confirm('双六ゲームのギフトとマスデータを初期化しますか？')) return;
+
+    setInitLoading(true);
+    try {
+      const response = await fetch('/api/admin/init-sugoroku', {
+        method: 'POST',
+      });
+      const data = await response.json();
+
+      if (response.ok) {
+        alert(`初期化成功！\nギフト: ${data.giftsCount}個\nマス: ${data.squaresCount}個`);
+        loadData(); // データを再読み込み
+      } else {
+        alert(`エラー: ${data.error}`);
+      }
+    } catch (error) {
+      console.error('Init error:', error);
+      alert('初期化に失敗しました');
+    } finally {
+      setInitLoading(false);
+    }
   };
 
   if (loading) {
@@ -93,6 +126,22 @@ export function SugorokuBoard({ userId, familyId }: SugorokuBoardProps) {
 
   return (
     <div className="space-y-6">
+      {/* 開発用: 初期化ボタン */}
+      <div className="p-4 bg-yellow-50 border-2 border-yellow-400 rounded-lg">
+        <p className="text-sm text-yellow-800 mb-2 font-bold">
+          🔧 開発用: 双六データ初期化ボタン
+        </p>
+        <Button
+          onClick={handleInitSugoroku}
+          disabled={initLoading}
+          variant="outline"
+          size="sm"
+          className="bg-yellow-100 hover:bg-yellow-200"
+        >
+          {initLoading ? '初期化中...' : '🎁 ギフト＆マスデータを初期化'}
+        </Button>
+      </div>
+
       {/* ヘッダー情報 */}
       <Card>
         <CardHeader>
@@ -167,6 +216,66 @@ export function SugorokuBoard({ userId, familyId }: SugorokuBoardProps) {
               />
             ))}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* 獲得ギフト */}
+      <Card>
+        <CardHeader>
+          <CardTitle>🎁 獲得したギフト</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {userGifts.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {userGifts.map((userGift) => {
+                if (!userGift.gift) return null;
+                return (
+                  <div
+                    key={userGift.id}
+                    className="p-4 bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 rounded-lg text-center"
+                  >
+                    {userGift.gift.icon_url ? (
+                      <img
+                        src={userGift.gift.icon_url}
+                        alt={userGift.gift.name}
+                        className="w-16 h-16 mx-auto mb-2"
+                      />
+                    ) : (
+                      <div className="text-4xl mb-2">🎁</div>
+                    )}
+                    <p className="font-bold text-sm">{userGift.gift.name}</p>
+                    <Badge
+                      variant="outline"
+                      className={`mt-2 text-xs ${
+                        userGift.gift.rarity === "legendary"
+                          ? "bg-yellow-100 text-yellow-800 border-yellow-400"
+                          : userGift.gift.rarity === "rare"
+                          ? "bg-blue-100 text-blue-800 border-blue-400"
+                          : "bg-gray-100 text-gray-800 border-gray-400"
+                      }`}
+                    >
+                      {userGift.gift.rarity === "legendary"
+                        ? "伝説"
+                        : userGift.gift.rarity === "rare"
+                        ? "レア"
+                        : "コモン"}
+                    </Badge>
+                    {userGift.gift.description && (
+                      <p className="text-xs text-gray-600 mt-1">
+                        {userGift.gift.description}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <div className="text-6xl mb-3">🎁</div>
+              <p className="text-lg font-semibold mb-2">まだギフトを獲得していません</p>
+              <p className="text-sm">双六でギフトマスに止まるとギフトを獲得できます！</p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
