@@ -219,7 +219,12 @@ export async function rollDice(
     }
 
     // 進捗を更新
-    const updateData: any = {
+    const updateData: {
+      current_position: number;
+      updated_at: string;
+      is_completed?: boolean;
+      completed_at?: string;
+    } = {
       current_position: newPosition,
       updated_at: new Date().toISOString(),
     };
@@ -562,12 +567,15 @@ export async function getFamilyRanking(familyId: string): Promise<FamilyRanking[
       .eq("family_id", familyId)
       .maybeSingle();
 
+    const board = (progress.board as unknown as { board_number: number }[] | null);
+    const boardNumber = Array.isArray(board) && board.length > 0 ? board[0].board_number : 1;
+
     rankings.push({
       user_id: progress.user_id,
       user_name: profile?.display_name || '不明',
       avatar_url: profile?.avatar_url,
       current_position: progress.current_position,
-      board_number: (progress.board as any)?.board_number || 1,
+      board_number: boardNumber,
       total_points: points?.total_points || 0,
       rank: rankings.length + 1,
     });

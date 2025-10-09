@@ -34,10 +34,11 @@ export async function getUserPoints(
     .select("*")
     .eq("user_id", userId)
     .eq("family_id", familyId)
-    .single();
+    .maybeSingle();
 
   if (error) {
     console.error("Error fetching user points:", error);
+    console.error("Error code:", error.code, "Message:", error.message);
     return null;
   }
 
@@ -83,7 +84,14 @@ export async function addPoints(
       userPoints = newPoints;
     } else {
       // 更新
-      const updateData: any = {
+      const updateData: {
+        total_points: number;
+        current_points: number;
+        last_activity_date: string;
+        messages_sent?: number;
+        messages_received?: number;
+        messages_replied?: number;
+      } = {
         total_points: userPoints.total_points + points,
         current_points: userPoints.current_points + points,
         last_activity_date: new Date().toISOString().split('T')[0],
@@ -127,6 +135,9 @@ export async function addPoints(
     };
   } catch (error) {
     console.error("Error adding points:", error);
+    if (error && typeof error === 'object') {
+      console.error("Error details:", JSON.stringify(error, null, 2));
+    }
     return null;
   }
 }
