@@ -6,20 +6,17 @@ import { createClient } from "@/lib/supabase/client";
 import {
   SugorokuBoard,
   SugorokuSquare,
-  UserBoardProgress,
   UserBoardProgressWithBoard,
-  DiceHistory,
   RollType,
-  Gift,
   UserGift,
   FamilyRanking,
 } from "@/lib/types/sugoroku";
-import { consumePoints, addPoints } from "./points";
+import { consumePoints } from "./points";
 
 // サイコロ/ルーレット設定
 const ROLL_COSTS = {
   dice: 50,
-  roulette: 100,
+  roulette: 70,
 } as const;
 
 /**
@@ -82,20 +79,19 @@ export async function getUserProgress(
     .eq("family_id", familyId)
     .eq("is_completed", false)
     .order("started_at", { ascending: false })
-    .limit(1)
-    .single();
+    .limit(1);
 
   if (error && error.code !== 'PGRST116') {
     console.error("Error fetching user progress:", error);
     return null;
   }
 
-  if (!data) {
+  if (!data || data.length === 0) {
     // 初回の場合、ボード1を開始
     return await startNewBoard(userId, familyId, 1);
   }
 
-  return data as UserBoardProgressWithBoard;
+  return data[0] as UserBoardProgressWithBoard;
 }
 
 /**
@@ -118,6 +114,23 @@ export async function startNewBoard(
 
     if (boardError) throw boardError;
 
+    // 既存の進捗があるか確認
+    const { data: existingProgress } = await supabase
+      .from("user_board_progress")
+      .select(`
+        *,
+        board:sugoroku_boards!board_id (*)
+      `)
+      .eq("user_id", userId)
+      .eq("family_id", familyId)
+      .eq("board_id", board.id)
+      .maybeSingle();
+
+    if (existingProgress) {
+      // 既に存在する場合はそれを返す
+      return existingProgress as UserBoardProgressWithBoard;
+    }
+
     // 進捗を作成
     const { data: progress, error: progressError } = await supabase
       .from("user_board_progress")
@@ -138,6 +151,9 @@ export async function startNewBoard(
     };
   } catch (error) {
     console.error("Error starting new board:", error);
+    if (error && typeof error === 'object') {
+      console.error("Error details:", JSON.stringify(error, null, 2));
+    }
     return null;
   }
 }
@@ -155,6 +171,9 @@ export async function rollDice(
   newPosition?: number;
   square?: SugorokuSquare;
   message?: string;
+  eventMessage?: string;
+  giftName?: string;
+  giftRarity?: string;
 }> {
   const supabase = createClient();
 
@@ -185,8 +204,8 @@ export async function rollDice(
     }
 
     // ランダムな結果を生成
-    const maxRoll = rollType === 'dice' ? 6 : 10;
-    const result = Math.floor(Math.random() * maxRoll) + 1;
+    // テスト用: サイコロは常に1、ルーレットは常に3を出す
+    const result = rollType === 'dice' ? 1 : 3;
 
     // 新しい位置を計算
     let newPosition = progress.current_position + result;
@@ -237,9 +256,22 @@ export async function rollDice(
       .eq("position", newPosition)
       .single();
 
+    console.log("Square data retrieved:", square);
+    console.log("Square type:", square?.square_type);
+    console.log("Square event_data:", square?.event_data);
+
     // マスイベントを処理
+    let eventMessage = '';
+    let giftName: string | undefined;
+    let giftRarity: string | undefined;
     if (square) {
-      await processSquareEvent(userId, familyId, square);
+      console.log("Calling processSquareEvent for square:", square);
+      const eventResult = await processSquareEvent(userId, familyId, square);
+      eventMessage = eventResult.message;
+      giftName = eventResult.giftName;
+      giftRarity = eventResult.giftRarity;
+    } else {
+      console.log("No square data found for position:", newPosition);
     }
 
     return {
@@ -247,6 +279,9 @@ export async function rollDice(
       result,
       newPosition,
       square: square || undefined,
+      eventMessage,
+      giftName,
+      giftRarity,
     };
   } catch (error) {
     console.error("Error rolling dice:", error);
@@ -264,26 +299,38 @@ async function processSquareEvent(
   userId: string,
   familyId: string,
   square: SugorokuSquare
-): Promise<void> {
+): Promise<{ message: string; giftName?: string; giftRarity?: string }> {
   const supabase = createClient();
 
   try {
+    console.log("=== processSquareEvent called ===");
+    console.log("Square type:", square.square_type);
+    console.log("Square event_data:", square.event_data);
+
     switch (square.square_type) {
       case 'gift':
         // ギフトを付与
-        await grantRandomGift(userId, square);
+        const giftInfo = await grantRandomGift(userId, square);
+        if (giftInfo) {
+          const rarityLabel = giftInfo.rarity === 'legendary' ? '伝説' : giftInfo.rarity === 'rare' ? 'レア' : 'コモン';
+          return {
+            message: `🎁 ${giftInfo.name} を獲得しました！\n✨ レアリティ: ${rarityLabel}`,
+            giftName: giftInfo.name,
+            giftRarity: giftInfo.rarity,
+          };
+        }
         break;
 
       case 'bonus':
         // ボーナスポイント付与
         if (square.event_data && 'points' in square.event_data) {
-          await addPoints(
+          await addBonusPoints(
             userId,
             familyId,
-            'send', // 適切なタイプに変更する必要あり
-            undefined,
+            square.event_data.points as number,
             `ボーナスマス: +${square.event_data.points}pt`
           );
+          return { message: `💰 ボーナス +${square.event_data.points}pt を獲得！` };
         }
         break;
 
@@ -297,68 +344,151 @@ async function processSquareEvent(
 
           if (familyMembers) {
             for (const member of familyMembers) {
-              await addPoints(
+              await addBonusPoints(
                 member.user_id,
                 familyId,
-                'send',
-                undefined,
+                square.event_data.pointsPerMember as number,
                 `家族イベントボーナス: +${square.event_data.pointsPerMember}pt`
               );
             }
           }
+          return { message: `👨‍👩‍👧‍👦 家族全員に +${square.event_data.pointsPerMember}pt を配布しました！` };
         }
         break;
 
       case 'goal':
         // ゴール報酬
         if (square.event_data && 'points' in square.event_data) {
-          await addPoints(
+          await addBonusPoints(
             userId,
             familyId,
-            'send',
-            undefined,
+            square.event_data.points as number,
             `ボードクリア: +${square.event_data.points}pt`
           );
+          return { message: `🏁 ゴール！クリアボーナス +${square.event_data.points}pt を獲得！` };
         }
         break;
     }
   } catch (error) {
     console.error("Error processing square event:", error);
   }
+  return { message: '' };
+}
+
+/**
+ * ボーナスポイントを付与（任意のポイント数）
+ */
+async function addBonusPoints(
+  userId: string,
+  familyId: string,
+  points: number,
+  description: string
+): Promise<void> {
+  const supabase = createClient();
+
+  try {
+    // user_pointsを更新
+    const { data: currentPoints } = await supabase
+      .from("user_points")
+      .select("total_points, current_points")
+      .eq("user_id", userId)
+      .eq("family_id", familyId)
+      .maybeSingle();
+
+    if (currentPoints) {
+      await supabase
+        .from("user_points")
+        .update({
+          total_points: currentPoints.total_points + points,
+          current_points: currentPoints.current_points + points,
+        })
+        .eq("user_id", userId)
+        .eq("family_id", familyId);
+    } else {
+      // 初回の場合は作成
+      await supabase
+        .from("user_points")
+        .insert({
+          user_id: userId,
+          family_id: familyId,
+          total_points: points,
+          current_points: points,
+        });
+    }
+
+    // 履歴記録
+    await supabase
+      .from("point_history")
+      .insert({
+        user_id: userId,
+        family_id: familyId,
+        points_earned: points,
+        action_type: 'send',
+        description,
+      });
+
+    console.log(`Bonus points granted: ${points} to user ${userId}`);
+  } catch (error) {
+    console.error("Error adding bonus points:", error);
+  }
 }
 
 /**
  * ランダムなギフトを付与
  */
-async function grantRandomGift(userId: string, square: SugorokuSquare): Promise<void> {
+async function grantRandomGift(userId: string, square: SugorokuSquare): Promise<{ name: string; rarity: string } | null> {
   const supabase = createClient();
 
   try {
+    console.log("grantRandomGift called for user:", userId, "square:", square);
+
     let rarity = 'common';
     if (square.event_data && 'rarity' in square.event_data) {
-      rarity = square.event_data.rarity;
+      rarity = square.event_data.rarity as string;
     }
 
+    console.log("Gift rarity:", rarity);
+
     // レアリティに応じたギフトを取得
-    const { data: gifts } = await supabase
+    const { data: gifts, error: giftsError } = await supabase
       .from("gifts")
       .select("*")
       .eq("rarity", rarity)
       .eq("is_active", true);
 
+    console.log("Available gifts:", gifts?.length, "Error:", giftsError);
+
+    if (giftsError) {
+      console.error("Error fetching gifts:", giftsError);
+      return null;
+    }
+
     if (gifts && gifts.length > 0) {
       // ランダムに選択
       const randomGift = gifts[Math.floor(Math.random() * gifts.length)];
+      console.log("Selected gift:", randomGift.name);
 
       // ユーザーにギフトを付与
-      await supabase.from("user_gifts").insert({
+      const { error: insertError } = await supabase.from("user_gifts").insert({
         user_id: userId,
         gift_id: randomGift.id,
         square_id: square.id,
       });
+
+      if (insertError) {
+        console.error("Error inserting gift:", insertError);
+        return null;
+      } else {
+        console.log("Gift granted successfully:", randomGift.name);
+        return { name: randomGift.name, rarity: randomGift.rarity };
+      }
+    } else {
+      console.warn(`No gifts available for rarity: ${rarity}`);
+      return null;
     }
   } catch (error) {
     console.error("Error granting gift:", error);
+    return null;
   }
 }
 
@@ -391,35 +521,57 @@ export async function getUserGifts(userId: string): Promise<UserGift[]> {
 export async function getFamilyRanking(familyId: string): Promise<FamilyRanking[]> {
   const supabase = createClient();
 
-  const { data, error } = await supabase
+  // user_board_progressを取得
+  const { data: progressData, error: progressError } = await supabase
     .from("user_board_progress")
     .select(`
       user_id,
       current_position,
-      board:sugoroku_boards!board_id (board_number),
-      profile:profiles!user_id (display_name, avatar_url),
-      points:user_points!user_id (total_points)
+      board:sugoroku_boards!board_id (board_number)
     `)
     .eq("family_id", familyId)
     .eq("is_completed", false)
     .order("board_id", { ascending: false })
     .order("current_position", { ascending: false });
 
-  if (error) {
-    console.error("Error fetching family ranking:", error);
+  if (progressError) {
+    console.error("Error fetching family ranking:", progressError);
     return [];
   }
 
-  // ランキング形式に整形
-  const rankings: FamilyRanking[] = (data || []).map((item: any, index: number) => ({
-    user_id: item.user_id,
-    user_name: item.profile?.display_name || '不明',
-    avatar_url: item.profile?.avatar_url || null,
-    current_position: item.current_position,
-    board_number: item.board?.board_number || 1,
-    total_points: item.points?.total_points || 0,
-    rank: index + 1,
-  }));
+  if (!progressData || progressData.length === 0) {
+    return [];
+  }
+
+  // 各ユーザーのポイントとプロフィールを取得
+  const rankings: FamilyRanking[] = [];
+
+  for (const progress of progressData) {
+    // プロフィール取得
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("display_name, avatar_url")
+      .eq("id", progress.user_id)
+      .maybeSingle();
+
+    // ポイント取得
+    const { data: points } = await supabase
+      .from("user_points")
+      .select("total_points")
+      .eq("user_id", progress.user_id)
+      .eq("family_id", familyId)
+      .maybeSingle();
+
+    rankings.push({
+      user_id: progress.user_id,
+      user_name: profile?.display_name || '不明',
+      avatar_url: profile?.avatar_url,
+      current_position: progress.current_position,
+      board_number: (progress.board as any)?.board_number || 1,
+      total_points: points?.total_points || 0,
+      rank: rankings.length + 1,
+    });
+  }
 
   return rankings;
 }
