@@ -19,6 +19,7 @@ import {
 import { getUserPoints } from "@/lib/api/points";
 import { SugorokuSquareItem } from "./sugoroku-square";
 import { DiceRoller } from "./dice-roller";
+import { WorldMapModal } from "./world-map-modal";
 
 interface SugorokuBoardProps {
   userId: string;
@@ -34,6 +35,7 @@ export function SugorokuBoard({ userId, familyId }: SugorokuBoardProps) {
   const [loading, setLoading] = useState(true);
   const [showDiceRoller, setShowDiceRoller] = useState(false);
   const [initLoading, setInitLoading] = useState(false);
+  const [showWorldMap, setShowWorldMap] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -203,11 +205,21 @@ export function SugorokuBoard({ userId, familyId }: SugorokuBoardProps) {
       {/* 双六ボード */}
       <Card className="bg-gradient-to-br from-sky-100 via-blue-50 to-indigo-100">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <span>🗺️ 世界の旅</span>
-            <span className="text-sm font-normal text-gray-600">
-              ～ {progress.board.name} ～
-            </span>
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span>🗺️ 世界の旅</span>
+              <span className="text-sm font-normal text-gray-600">
+                ～ {progress.board.name} ～
+              </span>
+            </div>
+            <Button
+              onClick={() => setShowWorldMap(true)}
+              variant="outline"
+              size="sm"
+              className="bg-white hover:bg-blue-50"
+            >
+              🌍 ルート地図を見る
+            </Button>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -219,17 +231,30 @@ export function SugorokuBoard({ userId, familyId }: SugorokuBoardProps) {
               const isReverse = rowIndex % 2 === 1; // 奇数行は逆順
 
               return (
-                <div key={rowIndex} className="mb-2">
-                  <div className="grid grid-cols-10 gap-2">
-                    {(isReverse ? [...rowSquares].reverse() : rowSquares).map((square) => (
-                      <SugorokuSquareItem
-                        key={square.id}
-                        square={square}
-                        isCurrentPosition={square.position === progress.current_position}
-                        isPassed={square.position < progress.current_position}
-                      />
+                <div key={rowIndex} className="mb-2 relative">
+                  <div className="grid grid-cols-10 gap-2 relative">
+                    {(isReverse ? [...rowSquares].reverse() : rowSquares).map((square, idx) => (
+                      <div key={square.id} className="relative">
+                        <SugorokuSquareItem
+                          square={square}
+                          isCurrentPosition={square.position === progress.current_position}
+                          isPassed={square.position < progress.current_position}
+                        />
+                        {/* 矢印表示（行の最後以外） */}
+                        {idx < rowSquares.length - 1 && (
+                          <div className="absolute top-1/2 -translate-y-1/2 -right-1 text-blue-500 text-xs z-0">
+                            {isReverse ? "←" : "→"}
+                          </div>
+                        )}
+                      </div>
                     ))}
                   </div>
+                  {/* 行の終わりの下向き矢印 */}
+                  {rowIndex < Math.ceil(squares.length / 10) - 1 && (
+                    <div className={`absolute -bottom-1 ${isReverse ? 'left-0' : 'right-0'} text-blue-500 text-xs`}>
+                      ↓
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -362,6 +387,13 @@ export function SugorokuBoard({ userId, familyId }: SugorokuBoardProps) {
           </CardContent>
         </Card>
       )}
+
+      {/* 世界地図モーダル */}
+      <WorldMapModal
+        open={showWorldMap}
+        onOpenChange={setShowWorldMap}
+        currentPosition={progress.current_position}
+      />
     </div>
   );
 }

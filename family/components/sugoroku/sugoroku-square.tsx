@@ -8,28 +8,38 @@ interface SugorokuSquareItemProps {
   isPassed: boolean;
 }
 
-// 世界の名所アイコン（位置に応じて変化）
-const WORLD_LANDMARKS = [
-  "🏔️", // 山
-  "🌊", // 海
-  "🏞️", // 川・谷
-  "🌉", // 橋
-  "🌈", // 虹
-  "🏝️", // 島
-  "🗻", // 富士山
-  "🏛️", // 神殿
-  "🏜️", // 砂漠
-  "🌅", // オーロラ・日の出
-  "🗽", // 自由の女神
-  "🏯", // 万里の長城
-  "🏰", // モンサンミッシェル
-  "⛪", // サグラダファミリア
-  "🕌", // モスク
-  "🗼", // エッフェル塔
-  "🎡", // 観覧車
-  "🎢", // ジェットコースター
-  "🎪", // サーカス
-  "🚂", // 列車
+// 30の世界遺産名所（西回りルート：日本 → アジア → 中東 → ヨーロッパ → アフリカ → アメリカ → 太平洋）
+const WORLD_HERITAGE_SITES = [
+  { icon: "🗻", name: "富士山" },              // 0: 日本
+  { icon: "⛩️", name: "厳島神社" },            // 1: 日本
+  { icon: "🏯", name: "姫路城" },              // 2: 日本
+  { icon: "🐼", name: "九寨溝" },              // 3: 中国
+  { icon: "🏯", name: "万里の長城" },          // 4: 中国
+  { icon: "🏛️", name: "紫禁城" },             // 5: 中国
+  { icon: "🕌", name: "タージマハル" },         // 6: インド
+  { icon: "🛕", name: "アンコールワット" },     // 7: カンボジア
+  { icon: "⛰️", name: "エベレスト" },          // 8: ネパール
+  { icon: "🕌", name: "ペトラ遺跡" },          // 9: ヨルダン
+  { icon: "🏜️", name: "ピラミッド" },          // 10: エジプト
+  { icon: "🐫", name: "サハラ砂漠" },          // 11: アフリカ
+  { icon: "🦁", name: "セレンゲティ" },        // 12: タンザニア
+  { icon: "🗿", name: "ビクトリア滝" },        // 13: ジンバブエ
+  { icon: "🏛️", name: "アテネ神殿" },         // 14: ギリシャ
+  { icon: "🏟️", name: "コロッセオ" },         // 15: イタリア
+  { icon: "🗼", name: "ピサの斜塔" },          // 16: イタリア
+  { icon: "⛪", name: "サグラダファミリア" },   // 17: スペイン
+  { icon: "🏰", name: "モンサンミッシェル" },   // 18: フランス
+  { icon: "🗼", name: "エッフェル塔" },        // 19: フランス
+  { icon: "🏰", name: "ノイシュバンシュタイン" }, // 20: ドイツ
+  { icon: "🌉", name: "タワーブリッジ" },      // 21: イギリス
+  { icon: "🗽", name: "自由の女神" },          // 22: アメリカ
+  { icon: "🏞️", name: "グランドキャニオン" },  // 23: アメリカ
+  { icon: "🌁", name: "ゴールデンゲート" },     // 24: アメリカ
+  { icon: "🗿", name: "マチュピチュ" },        // 25: ペルー
+  { icon: "🌴", name: "イグアスの滝" },        // 26: ブラジル
+  { icon: "🗿", name: "イースター島" },        // 27: チリ
+  { icon: "🏝️", name: "グレートバリアリーフ" }, // 28: オーストラリア
+  { icon: "🌋", name: "ハワイ火山" },          // 29: アメリカ
 ];
 
 export function SugorokuSquareItem({
@@ -80,8 +90,34 @@ export function SugorokuSquareItem({
       case "rest":
         return "☕";
       default:
-        // 通常マスは世界の名所アイコンを位置に応じて表示
-        return WORLD_LANDMARKS[square.position % WORLD_LANDMARKS.length];
+        // 通常マスは世界遺産名所アイコンを順番に表示（30個まで、それ以降は繰り返さない）
+        const site = WORLD_HERITAGE_SITES[square.position % WORLD_HERITAGE_SITES.length];
+        return site ? site.icon : "🌍";
+    }
+  };
+
+  const getLandmarkName = () => {
+    // ゴールは特別
+    if (square.square_type === "goal") return "ゴール";
+
+    // イベントタイプによる名前
+    switch (square.square_type) {
+      case "gift":
+        return "ギフト";
+      case "bonus":
+        return "ボーナス";
+      case "chance":
+        return "チャンス";
+      case "family_event":
+        return "家族";
+      case "mission":
+        return "ミッション";
+      case "rest":
+        return "休憩";
+      default:
+        // 通常マスは世界遺産名所の名前を表示
+        const site = WORLD_HERITAGE_SITES[square.position % WORLD_HERITAGE_SITES.length];
+        return site ? site.name : "世界";
     }
   };
 
@@ -94,7 +130,7 @@ export function SugorokuSquareItem({
         ${!isPassed && !isCurrentPosition ? 'hover:scale-105 cursor-pointer' : ''}
         transition-all duration-300 transform
       `}
-      title={square.description || `${square.position}番目のマス`}
+      title={`${square.position}: ${getLandmarkName()}`}
     >
       {/* 位置番号 */}
       <span className={`absolute top-0.5 left-0.5 text-xs px-1.5 py-0.5 rounded-md font-bold ${
@@ -104,8 +140,13 @@ export function SugorokuSquareItem({
       </span>
 
       {/* アイコン */}
-      <span className={`text-2xl sm:text-3xl ${isCurrentPosition ? 'animate-bounce' : ''}`}>
+      <span className={`text-2xl sm:text-3xl mb-1 ${isCurrentPosition ? 'animate-bounce' : ''}`}>
         {getSquareIcon()}
+      </span>
+
+      {/* 名所の名前 */}
+      <span className="text-[0.5rem] font-semibold text-gray-800 text-center leading-tight px-0.5 bg-white bg-opacity-70 rounded">
+        {getLandmarkName()}
       </span>
 
       {/* 通過済みの半透明オーバーレイ */}
