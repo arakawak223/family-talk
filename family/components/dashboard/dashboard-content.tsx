@@ -27,6 +27,12 @@ export function DashboardContent({ user }: DashboardContentProps) {
   const [initLoading, setInitLoading] = useState(false);
   const router = useRouter();
 
+  // 家族グループが変更されたら受信者リストをリセット
+  const handleFamilyChange = (family: typeof selectedFamily) => {
+    setSelectedFamily(family);
+    setSelectedRecipients([]); // 受信者リストをクリア
+  };
+
   const handleManageFamily = () => {
     console.log("家族グループを管理ボタンがクリックされました");
     console.log("Navigating to /onboarding");
@@ -119,7 +125,7 @@ export function DashboardContent({ user }: DashboardContentProps) {
         <FamilyInfo
           families={user.families}
           selectedFamily={selectedFamily}
-          onFamilyChange={setSelectedFamily}
+          onFamilyChange={handleFamilyChange}
         />
       </div>
 

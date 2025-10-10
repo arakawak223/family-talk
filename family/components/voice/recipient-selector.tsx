@@ -33,7 +33,10 @@ export function RecipientSelector({
   const [members, setMembers] = useState<FamilyMember[]>([]);
 
   useEffect(() => {
+    // familyIdが変更されたら、メンバーリストをリセットして再読み込み
+    setMembers([]);
     loadFamilyMembers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [familyId]);
 
   const loadFamilyMembers = async () => {
@@ -71,8 +74,9 @@ export function RecipientSelector({
 
     setMembers(membersWithProfiles);
 
-    // 初期値として全員選択
-    if (selectedRecipients.length === 0) {
+    // 初期値として全員選択（selectedRecipientsが空の場合のみ）
+    // これにより、家族グループ切り替え後も自動的に全員が選択される
+    if (selectedRecipients.length === 0 && membersData.length > 0) {
       const allRecipients = membersData.map(m => m.user_id);
       onRecipientsChange(allRecipients);
     }
