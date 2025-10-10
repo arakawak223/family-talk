@@ -241,8 +241,8 @@ export function VoiceMessagesList({ familyId, currentUserId }: VoiceMessagesList
                         </Badge>
                       )}
                     </div>
-                    {/* 宛先表示 */}
-                    {message.recipients && message.recipients.length > 0 && (
+                    {/* 宛先表示（自分が送信したメッセージのみ） */}
+                    {isSentByMe && message.recipients && message.recipients.length > 0 && (
                       <div className="flex items-center gap-1 text-xs text-gray-500 ml-8">
                         <span>→</span>
                         <div className="flex items-center gap-1 flex-wrap">

@@ -51,18 +51,26 @@ export function MessageCalendar({ familyId, userId }: MessageCalendarProps) {
       .gte('created_at', startDate.toISOString())
       .lte('created_at', endDate.toISOString());
 
-    // 日付ごとに集計
+    // 日付ごとに集計（ローカルタイムゾーンで処理）
     const statsMap = new Map<string, MessageStats>();
 
+    const toLocalDateString = (dateStr: string) => {
+      const date = new Date(dateStr);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
     sentMessages?.forEach(msg => {
-      const date = new Date(msg.created_at).toISOString().split('T')[0];
+      const date = toLocalDateString(msg.created_at);
       const existing = statsMap.get(date) || { date, sent: 0, received: 0 };
       existing.sent += 1;
       statsMap.set(date, existing);
     });
 
     receivedMessages?.forEach(msg => {
-      const date = new Date(msg.created_at).toISOString().split('T')[0];
+      const date = toLocalDateString(msg.created_at);
       const existing = statsMap.get(date) || { date, sent: 0, received: 0 };
       existing.received += 1;
       statsMap.set(date, existing);
@@ -102,13 +110,19 @@ export function MessageCalendar({ familyId, userId }: MessageCalendarProps) {
 
   const getStatsForDate = (date: Date | null) => {
     if (!date) return null;
-    const dateStr = date.toISOString().split('T')[0];
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
     return stats.find(s => s.date === dateStr);
   };
 
   const getEventsForDate = (date: Date | null) => {
     if (!date) return [];
-    const dateStr = date.toISOString().split('T')[0];
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
     return events.filter(e => e.event_date === dateStr);
   };
 

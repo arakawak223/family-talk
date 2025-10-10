@@ -201,20 +201,61 @@ export function SugorokuBoard({ userId, familyId }: SugorokuBoardProps) {
       )}
 
       {/* 双六ボード */}
-      <Card>
+      <Card className="bg-gradient-to-br from-sky-100 via-blue-50 to-indigo-100">
         <CardHeader>
-          <CardTitle>🗺️ ボード</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <span>🗺️ 世界の旅</span>
+            <span className="text-sm font-normal text-gray-600">
+              ～ {progress.board.name} ～
+            </span>
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
-            {squares.map((square) => (
-              <SugorokuSquareItem
-                key={square.id}
-                square={square}
-                isCurrentPosition={square.position === progress.current_position}
-                isPassed={square.position < progress.current_position}
-              />
-            ))}
+          <div className="relative">
+            {/* ジグザグレイアウト */}
+            {Array.from({ length: Math.ceil(squares.length / 10) }).map((_, rowIndex) => {
+              const startIndex = rowIndex * 10;
+              const rowSquares = squares.slice(startIndex, startIndex + 10);
+              const isReverse = rowIndex % 2 === 1; // 奇数行は逆順
+
+              return (
+                <div key={rowIndex} className="mb-2">
+                  <div className="grid grid-cols-10 gap-2">
+                    {(isReverse ? [...rowSquares].reverse() : rowSquares).map((square) => (
+                      <SugorokuSquareItem
+                        key={square.id}
+                        square={square}
+                        isCurrentPosition={square.position === progress.current_position}
+                        isPassed={square.position < progress.current_position}
+                      />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* 凡例 */}
+          <div className="mt-6 p-4 bg-white bg-opacity-80 rounded-lg">
+            <p className="text-xs font-semibold text-gray-700 mb-2">マスの種類：</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+              <div className="flex items-center gap-1">
+                <span className="w-4 h-4 bg-gradient-to-br from-pink-300 to-indigo-400 rounded border"></span>
+                <span>🎁 ギフト</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="w-4 h-4 bg-gradient-to-br from-yellow-300 to-amber-400 rounded border"></span>
+                <span>💰 ボーナス</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="w-4 h-4 bg-gradient-to-br from-green-300 to-emerald-400 rounded border"></span>
+                <span>👨‍👩‍👧‍👦 家族</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="w-4 h-4 bg-gradient-to-br from-blue-50 to-sky-100 rounded border"></span>
+                <span>🗺️ 名所</span>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
