@@ -204,8 +204,9 @@ export async function rollDice(
     }
 
     // ランダムな結果を生成
-    // テスト用: サイコロは常に1、ルーレットは常に3を出す
-    const result = rollType === 'dice' ? 1 : 3;
+    const result = rollType === 'dice'
+      ? Math.floor(Math.random() * 6) + 1  // 1-6
+      : Math.floor(Math.random() * 10) + 1; // 1-10
 
     // 新しい位置を計算
     let newPosition = progress.current_position + result;
