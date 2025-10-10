@@ -2,12 +2,12 @@
 -- イベント・カレンダー機能 データベーススキーマ
 -- ======================================
 
--- 1. プロフィールテーブルに誕生日カラムを追加
+-- 1. プロフィールテーブルに誕生日カラムを追加（存在しない場合のみ）
 ALTER TABLE profiles
-ADD COLUMN birthday DATE;
+ADD COLUMN IF NOT EXISTS birthday DATE;
 
 -- 2. 家族イベントテーブル
-CREATE TABLE family_events (
+CREATE TABLE IF NOT EXISTS family_events (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   family_id UUID REFERENCES families(id) ON DELETE CASCADE NOT NULL,
   created_by UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
@@ -23,7 +23,7 @@ CREATE TABLE family_events (
 );
 
 -- 3. イベント通知設定テーブル（ユーザーごと）
-CREATE TABLE event_notification_settings (
+CREATE TABLE IF NOT EXISTS event_notification_settings (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
   family_id UUID REFERENCES families(id) ON DELETE CASCADE NOT NULL,
@@ -37,7 +37,7 @@ CREATE TABLE event_notification_settings (
 );
 
 -- 4. 送信済み通知履歴テーブル（重複送信防止）
-CREATE TABLE event_notifications_sent (
+CREATE TABLE IF NOT EXISTS event_notifications_sent (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   event_id UUID REFERENCES family_events(id) ON DELETE CASCADE NOT NULL,
   user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
@@ -47,10 +47,10 @@ CREATE TABLE event_notifications_sent (
 );
 
 -- インデックス作成
-CREATE INDEX idx_family_events_family_id ON family_events(family_id);
-CREATE INDEX idx_family_events_event_date ON family_events(event_date);
-CREATE INDEX idx_event_notification_settings_user_family ON event_notification_settings(user_id, family_id);
-CREATE INDEX idx_event_notifications_sent_event_user ON event_notifications_sent(event_id, user_id);
+CREATE INDEX IF NOT EXISTS idx_family_events_family_id ON family_events(family_id);
+CREATE INDEX IF NOT EXISTS idx_family_events_event_date ON family_events(event_date);
+CREATE INDEX IF NOT EXISTS idx_event_notification_settings_user_family ON event_notification_settings(user_id, family_id);
+CREATE INDEX IF NOT EXISTS idx_event_notifications_sent_event_user ON event_notifications_sent(event_id, user_id);
 
 -- RLS (Row Level Security) ポリシー設定
 ALTER TABLE family_events ENABLE ROW LEVEL SECURITY;
@@ -58,6 +58,7 @@ ALTER TABLE event_notification_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE event_notifications_sent ENABLE ROW LEVEL SECURITY;
 
 -- ポリシー: 家族メンバーは家族のイベントを閲覧可能
+DROP POLICY IF EXISTS "Family members can view family events" ON family_events;
 CREATE POLICY "Family members can view family events" ON family_events
   FOR SELECT USING (
     EXISTS (
@@ -67,6 +68,7 @@ CREATE POLICY "Family members can view family events" ON family_events
   );
 
 -- ポリシー: 家族メンバーは自由にイベントを作成可能
+DROP POLICY IF EXISTS "Family members can create events" ON family_events;
 CREATE POLICY "Family members can create events" ON family_events
   FOR INSERT WITH CHECK (
     EXISTS (
@@ -76,31 +78,39 @@ CREATE POLICY "Family members can create events" ON family_events
   );
 
 -- ポリシー: イベント作成者のみ更新・削除可能
+DROP POLICY IF EXISTS "Event creators can update their events" ON family_events;
 CREATE POLICY "Event creators can update their events" ON family_events
   FOR UPDATE USING (created_by = auth.uid());
 
+DROP POLICY IF EXISTS "Event creators can delete their events" ON family_events;
 CREATE POLICY "Event creators can delete their events" ON family_events
   FOR DELETE USING (created_by = auth.uid());
 
 -- ポリシー: 自分の通知設定のみ閲覧・更新可能
+DROP POLICY IF EXISTS "Users can view their own notification settings" ON event_notification_settings;
 CREATE POLICY "Users can view their own notification settings" ON event_notification_settings
   FOR SELECT USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can insert their own notification settings" ON event_notification_settings;
 CREATE POLICY "Users can insert their own notification settings" ON event_notification_settings
   FOR INSERT WITH CHECK (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can update their own notification settings" ON event_notification_settings;
 CREATE POLICY "Users can update their own notification settings" ON event_notification_settings
   FOR UPDATE USING (user_id = auth.uid());
 
 -- ポリシー: 通知履歴は本人のみ閲覧可能
+DROP POLICY IF EXISTS "Users can view their own notification history" ON event_notifications_sent;
 CREATE POLICY "Users can view their own notification history" ON event_notifications_sent
   FOR SELECT USING (user_id = auth.uid());
 
 -- トリガー関数: updated_at自動更新
+DROP TRIGGER IF EXISTS update_family_events_updated_at ON family_events;
 CREATE TRIGGER update_family_events_updated_at
   BEFORE UPDATE ON family_events
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_event_notification_settings_updated_at ON event_notification_settings;
 CREATE TRIGGER update_event_notification_settings_updated_at
   BEFORE UPDATE ON event_notification_settings
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -199,6 +209,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+DROP TRIGGER IF EXISTS on_family_member_added ON family_members;
 CREATE TRIGGER on_family_member_added
   AFTER INSERT ON family_members
   FOR EACH ROW EXECUTE FUNCTION create_default_event_notification_settings();

@@ -120,6 +120,7 @@ export async function markMessageAsListened(messageId: string, familyId?: string
 
     // ポイント付与（メッセージを聴いた）
     if (familyId) {
+      console.log('[markMessageAsListened] Starting point addition for familyId:', familyId);
       try {
         // メッセージ情報を取得して送信者を確認
         const { data: message } = await supabase
@@ -128,17 +129,25 @@ export async function markMessageAsListened(messageId: string, familyId?: string
           .eq('id', messageId)
           .single();
 
+        console.log('[markMessageAsListened] Message data:', message);
+
         if (message) {
           // 聴いた人にポイント付与
-          await addPoints(user.id, familyId, 'listen', messageId);
+          console.log('[markMessageAsListened] Adding listen points to user:', user.id);
+          const listenResult = await addPoints(user.id, familyId, 'listen', messageId);
+          console.log('[markMessageAsListened] Listen points result:', listenResult);
 
           // 送信者：全員が聴いたかチェック
-          await checkAllListenedBonus(messageId, message.sender_id, familyId);
+          console.log('[markMessageAsListened] Checking all listened bonus for sender:', message.sender_id);
+          const bonusResult = await checkAllListenedBonus(messageId, message.sender_id, familyId);
+          console.log('[markMessageAsListened] All listened bonus result:', bonusResult);
         }
       } catch (pointsError) {
         console.error('ポイント付与エラー:', pointsError);
         // ポイント付与エラーでも既読更新自体は成功とする
       }
+    } else {
+      console.log('[markMessageAsListened] No familyId provided, skipping points');
     }
 
   } catch (error) {

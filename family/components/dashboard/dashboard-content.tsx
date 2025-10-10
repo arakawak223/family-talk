@@ -22,7 +22,9 @@ export function DashboardContent({ user }: DashboardContentProps) {
   const [selectedQuestion, setSelectedQuestion] = useState<string>("");
   const [selectedFamily, setSelectedFamily] = useState(user.families[0]);
   const [refreshMessages, setRefreshMessages] = useState(0);
+  const [refreshSugoroku, setRefreshSugoroku] = useState(0);
   const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
+  const [initLoading, setInitLoading] = useState(false);
   const router = useRouter();
 
   const handleManageFamily = () => {
@@ -45,6 +47,30 @@ export function DashboardContent({ user }: DashboardContentProps) {
       console.error("Logout error:", error);
       // エラーがあってもログインページにリダイレクト
       window.location.href = "/auth/login";
+    }
+  };
+
+  const handleInitSugoroku = async () => {
+    if (!confirm('双六ゲームのギフトとマスデータを初期化しますか？')) return;
+
+    setInitLoading(true);
+    try {
+      const response = await fetch('/api/admin/init-sugoroku', {
+        method: 'POST',
+      });
+      const data = await response.json();
+
+      if (response.ok) {
+        alert(`初期化成功！\nギフト: ${data.giftsCount}個\nマス: ${data.squaresCount}個`);
+        setRefreshSugoroku(prev => prev + 1);
+      } else {
+        alert(`エラー: ${data.error}`);
+      }
+    } catch (error) {
+      console.error('Init error:', error);
+      alert('初期化に失敗しました');
+    } finally {
+      setInitLoading(false);
     }
   };
 
@@ -143,6 +169,7 @@ export function DashboardContent({ user }: DashboardContentProps) {
                 setSelectedQuestion("");
                 setSelectedRecipients([]);
                 setRefreshMessages(prev => prev + 1); // メッセージ一覧を更新
+                setRefreshSugoroku(prev => prev + 1); // 双六ボードを更新
               }}
               onCancel={() => setShowRecorder(false)}
             />
@@ -152,9 +179,24 @@ export function DashboardContent({ user }: DashboardContentProps) {
 
       {/* 双六ボード */}
       <div className="mb-8">
+        {/* 開発用: 初期化ボタン */}
+        <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <p className="text-sm text-yellow-800 mb-2">
+            開発用: 双六データ初期化ボタン
+          </p>
+          <Button
+            onClick={handleInitSugoroku}
+            disabled={initLoading}
+            variant="outline"
+            size="sm"
+          >
+            {initLoading ? '初期化中...' : 'ギフト＆マスデータを初期化'}
+          </Button>
+        </div>
         <SugorokuBoard
           userId={user.profile?.id || ""}
           familyId={selectedFamily.id}
+          key={`${selectedFamily.id}-${refreshSugoroku}`}
         />
       </div>
 

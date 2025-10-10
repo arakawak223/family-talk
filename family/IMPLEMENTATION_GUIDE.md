@@ -28,7 +28,7 @@
 
 ### Step 1: データベースのセットアップ
 
-Supabaseの管理画面で以下のSQLを順番に実行してください：
+Supabaseの管理画面 (SQL Editor) で以下のSQLを順番に実行してください：
 
 ```bash
 # 1. 双六システムの基本スキーマ
@@ -37,9 +37,14 @@ family/database-sugoroku-system.sql
 # 2. イベント・カレンダーシステム
 family/database-events-calendar.sql
 
-# 3. ギフトとマス配置の初期データ
-family/database-sugoroku-gifts-seed.sql
+# 3. ギフトとマス配置の初期データ（重要！）
+family/database-sugoroku-gifts.sql
+# または簡易版:
+family/database-gifts-simple.sql
 ```
+
+**重要**: `database-sugoroku-gifts.sql` を実行しないと、ギフトマスに止まっても何も起きません！
+必ずSupabase ダッシュボード → SQL Editor から実行してください。
 
 ### Step 2: ダッシュボードに双六ボードを追加
 
@@ -85,7 +90,7 @@ import { SugorokuBoard } from "@/components/sugoroku/sugoroku-board";
 #### サイコロ/ルーレット
 ```
 サイコロ: 50pt消費、1〜6マス進む
-ルーレット: 100pt消費、1〜10マス進む
+ルーレット: 70pt消費、1〜10マス進む
 ```
 
 #### マスの種類

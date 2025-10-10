@@ -10,38 +10,38 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 
-// 30の世界遺産名所（西回りルート + 地図上の位置）
+// 30の世界遺産名所（西回りルート + 地図上の位置: SVG座標系 0-1000, 0-600）
 const WORLD_HERITAGE_ROUTE = [
-  { position: 0, name: "富士山", region: "日本", icon: "🗻", x: 85, y: 35 },
-  { position: 1, name: "厳島神社", region: "日本", icon: "⛩️", x: 83, y: 38 },
-  { position: 2, name: "姫路城", region: "日本", icon: "🏯", x: 84, y: 37 },
-  { position: 3, name: "九寨溝", region: "中国", icon: "🐼", x: 75, y: 32 },
-  { position: 4, name: "万里の長城", region: "中国", icon: "🏯", x: 77, y: 38 },
-  { position: 5, name: "紫禁城", region: "中国", icon: "🏛️", x: 78, y: 40 },
-  { position: 6, name: "タージマハル", region: "インド", icon: "🕌", x: 68, y: 48 },
-  { position: 7, name: "アンコールワット", region: "カンボジア", icon: "🛕", x: 75, y: 55 },
-  { position: 8, name: "エベレスト", region: "ネパール", icon: "⛰️", x: 70, y: 45 },
-  { position: 9, name: "ペトラ遺跡", region: "ヨルダン", icon: "🕌", x: 48, y: 52 },
-  { position: 10, name: "ピラミッド", region: "エジプト", icon: "🏜️", x: 45, y: 52 },
-  { position: 11, name: "サハラ砂漠", region: "アフリカ", icon: "🐫", x: 35, y: 50 },
-  { position: 12, name: "セレンゲティ", region: "タンザニア", icon: "🦁", x: 46, y: 62 },
-  { position: 13, name: "ビクトリア滝", region: "ジンバブエ", icon: "🗿", x: 44, y: 70 },
-  { position: 14, name: "アテネ神殿", region: "ギリシャ", icon: "🏛️", x: 42, y: 42 },
-  { position: 15, name: "コロッセオ", region: "イタリア", icon: "🏟️", x: 36, y: 40 },
-  { position: 16, name: "ピサの斜塔", region: "イタリア", icon: "🗼", x: 35, y: 39 },
-  { position: 17, name: "サグラダファミリア", region: "スペイン", icon: "⛪", x: 28, y: 42 },
-  { position: 18, name: "モンサンミッシェル", region: "フランス", icon: "🏰", x: 30, y: 36 },
-  { position: 19, name: "エッフェル塔", region: "フランス", icon: "🗼", x: 31, y: 37 },
-  { position: 20, name: "ノイシュバンシュタイン", region: "ドイツ", icon: "🏰", x: 35, y: 36 },
-  { position: 21, name: "タワーブリッジ", region: "イギリス", icon: "🌉", x: 30, y: 33 },
-  { position: 22, name: "自由の女神", region: "アメリカ", icon: "🗽", x: 15, y: 40 },
-  { position: 23, name: "グランドキャニオン", region: "アメリカ", icon: "🏞️", x: 10, y: 42 },
-  { position: 24, name: "ゴールデンゲート", region: "アメリカ", icon: "🌁", x: 8, y: 40 },
-  { position: 25, name: "マチュピチュ", region: "ペルー", icon: "🗿", x: 18, y: 68 },
-  { position: 26, name: "イグアスの滝", region: "ブラジル", icon: "🌴", x: 22, y: 72 },
-  { position: 27, name: "イースター島", region: "チリ", icon: "🗿", x: 12, y: 75 },
-  { position: 28, name: "グレートバリアリーフ", region: "オーストラリア", icon: "🏝️", x: 82, y: 75 },
-  { position: 29, name: "ハワイ火山", region: "アメリカ", icon: "🌋", x: 5, y: 50 },
+  { position: 0, name: "富士山", region: "日本", icon: "🗻", x: 850, y: 210 },
+  { position: 1, name: "厳島神社", region: "日本", icon: "⛩️", x: 830, y: 228 },
+  { position: 2, name: "姫路城", region: "日本", icon: "🏯", x: 840, y: 222 },
+  { position: 3, name: "九寨溝", region: "中国", icon: "🐼", x: 750, y: 192 },
+  { position: 4, name: "万里の長城", region: "中国", icon: "🏯", x: 770, y: 228 },
+  { position: 5, name: "紫禁城", region: "中国", icon: "🏛️", x: 780, y: 240 },
+  { position: 6, name: "タージマハル", region: "インド", icon: "🕌", x: 680, y: 288 },
+  { position: 7, name: "アンコールワット", region: "カンボジア", icon: "🛕", x: 750, y: 330 },
+  { position: 8, name: "エベレスト", region: "ネパール", icon: "⛰️", x: 700, y: 270 },
+  { position: 9, name: "ペトラ遺跡", region: "ヨルダン", icon: "🕌", x: 480, y: 312 },
+  { position: 10, name: "ピラミッド", region: "エジプト", icon: "🏜️", x: 450, y: 312 },
+  { position: 11, name: "サハラ砂漠", region: "アフリカ", icon: "🐫", x: 350, y: 300 },
+  { position: 12, name: "セレンゲティ", region: "タンザニア", icon: "🦁", x: 460, y: 372 },
+  { position: 13, name: "ビクトリア滝", region: "ジンバブエ", icon: "🗿", x: 440, y: 420 },
+  { position: 14, name: "アテネ神殿", region: "ギリシャ", icon: "🏛️", x: 420, y: 252 },
+  { position: 15, name: "コロッセオ", region: "イタリア", icon: "🏟️", x: 360, y: 240 },
+  { position: 16, name: "ピサの斜塔", region: "イタリア", icon: "🗼", x: 350, y: 234 },
+  { position: 17, name: "サグラダファミリア", region: "スペイン", icon: "⛪", x: 280, y: 252 },
+  { position: 18, name: "モンサンミッシェル", region: "フランス", icon: "🏰", x: 300, y: 216 },
+  { position: 19, name: "エッフェル塔", region: "フランス", icon: "🗼", x: 310, y: 222 },
+  { position: 20, name: "ノイシュバンシュタイン", region: "ドイツ", icon: "🏰", x: 350, y: 216 },
+  { position: 21, name: "タワーブリッジ", region: "イギリス", icon: "🌉", x: 300, y: 198 },
+  { position: 22, name: "自由の女神", region: "アメリカ", icon: "🗽", x: 150, y: 240 },
+  { position: 23, name: "グランドキャニオン", region: "アメリカ", icon: "🏞️", x: 100, y: 252 },
+  { position: 24, name: "ゴールデンゲート", region: "アメリカ", icon: "🌁", x: 80, y: 240 },
+  { position: 25, name: "マチュピチュ", region: "ペルー", icon: "🗿", x: 180, y: 408 },
+  { position: 26, name: "イグアスの滝", region: "ブラジル", icon: "🌴", x: 220, y: 432 },
+  { position: 27, name: "イースター島", region: "チリ", icon: "🗿", x: 120, y: 450 },
+  { position: 28, name: "グレートバリアリーフ", region: "オーストラリア", icon: "🏝️", x: 820, y: 450 },
+  { position: 29, name: "ハワイ火山", region: "アメリカ", icon: "🌋", x: 50, y: 300 },
 ];
 
 interface WorldMapModalProps {
@@ -86,76 +86,125 @@ export function WorldMapModal({ open, onOpenChange, currentPosition = 0 }: World
           </div>
 
           {/* 世界地図 */}
-          <div className="relative w-full bg-gradient-to-b from-sky-200 via-blue-100 to-green-100 rounded-xl border-4 border-blue-400 overflow-hidden" style={{ height: "500px" }}>
-            {/* 地図の背景（大陸風） */}
-            <div className="absolute inset-0">
-              {/* アジア */}
-              <div className="absolute bg-green-200 rounded-full opacity-60" style={{ top: "25%", left: "65%", width: "25%", height: "40%" }}></div>
-              {/* ヨーロッパ */}
-              <div className="absolute bg-green-200 rounded-full opacity-60" style={{ top: "20%", left: "28%", width: "18%", height: "35%" }}></div>
-              {/* アフリカ */}
-              <div className="absolute bg-yellow-200 rounded-full opacity-60" style={{ top: "40%", left: "32%", width: "16%", height: "40%" }}></div>
-              {/* 北アメリカ */}
-              <div className="absolute bg-green-200 rounded-full opacity-60" style={{ top: "20%", left: "5%", width: "18%", height: "40%" }}></div>
-              {/* 南アメリカ */}
-              <div className="absolute bg-green-200 rounded-full opacity-60" style={{ top: "55%", left: "12%", width: "14%", height: "35%" }}></div>
-              {/* オーストラリア */}
-              <div className="absolute bg-yellow-100 rounded-full opacity-60" style={{ top: "65%", left: "75%", width: "12%", height: "20%" }}></div>
-            </div>
+          <div className="relative w-full rounded-xl border-4 border-blue-400 overflow-hidden shadow-2xl" style={{ height: "600px" }}>
+            <svg viewBox="0 0 1000 600" className="absolute inset-0 w-full h-full">
+              {/* 海（背景） */}
+              <rect x="0" y="0" width="1000" height="600" fill="#a8d5e2" />
 
-            {/* 名所のマーカー（番号のみ） */}
-            {WORLD_HERITAGE_ROUTE.map((site, index) => {
-              const isPassed = site.position < currentPosition;
-              const isCurrent = site.position === currentPosition;
+              {/* 北アメリカ大陸 */}
+              <path d="M 50,150 Q 80,120 120,140 L 180,180 Q 200,200 190,240 L 160,280 Q 140,300 120,280 L 80,250 Q 60,220 50,180 Z" fill="#90c695" stroke="#5a8a5f" strokeWidth="1.5" />
+              <path d="M 100,160 Q 120,140 160,150 L 200,170 L 220,200 L 200,230 L 170,240 L 140,220 L 120,190 Z" fill="#90c695" stroke="#5a8a5f" strokeWidth="1.5" />
 
-              return (
-                <div
-                  key={site.position}
-                  className="absolute transform -translate-x-1/2 -translate-y-1/2 transition-all duration-300 hover:scale-125 z-10 cursor-pointer group"
-                  style={{ left: `${site.x}%`, top: `${site.y}%` }}
-                >
-                  {/* 番号表示 */}
-                  <div
-                    className={`relative flex items-center justify-center w-10 h-10 rounded-full border-3 font-bold text-sm shadow-lg transition-all ${
-                      isCurrent
-                        ? "bg-yellow-400 border-yellow-600 text-white animate-pulse scale-125"
-                        : isPassed
-                        ? "bg-gray-300 border-gray-400 text-gray-600 opacity-70"
-                        : "bg-white border-blue-400 text-blue-600"
-                    }`}
-                  >
-                    {site.position}
+              {/* 南アメリカ大陸 */}
+              <path d="M 140,350 Q 160,340 180,360 L 200,400 L 220,450 L 200,480 Q 180,490 160,480 L 140,440 L 130,400 Z" fill="#8bc48a" stroke="#5a8a5f" strokeWidth="1.5" />
 
-                    {/* ホバー時のツールチップ */}
-                    <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
-                      {site.icon} {site.name}
-                    </div>
-                  </div>
+              {/* ヨーロッパ大陸 */}
+              <path d="M 280,180 Q 300,170 320,180 L 350,200 L 370,220 L 360,240 L 340,250 L 310,240 L 290,220 Z" fill="#9bcf9a" stroke="#5a8a5f" strokeWidth="1.5" />
+              <path d="M 320,200 L 360,210 L 380,230 L 370,250 L 340,260 L 320,240 Z" fill="#9bcf9a" stroke="#5a8a5f" strokeWidth="1.5" />
 
-                  {/* ルート線 */}
-                  {index < WORLD_HERITAGE_ROUTE.length - 1 && (
-                    <svg
-                      className="absolute top-0 left-0 pointer-events-none"
-                      style={{
-                        width: `${Math.abs(WORLD_HERITAGE_ROUTE[index + 1].x - site.x) * 10}px`,
-                        height: `${Math.abs(WORLD_HERITAGE_ROUTE[index + 1].y - site.y) * 10}px`,
-                      }}
+              {/* アフリカ大陸 */}
+              <path d="M 340,280 Q 360,270 380,280 L 400,310 L 420,360 L 440,420 L 420,450 Q 400,460 380,450 L 360,420 L 350,380 L 340,330 Z" fill="#d4b896" stroke="#a68a5f" strokeWidth="1.5" />
+
+              {/* アジア大陸 */}
+              <path d="M 420,180 Q 450,160 490,170 L 540,190 L 600,210 L 670,230 L 720,250 L 750,270 Q 760,290 750,310 L 720,330 L 680,340 L 640,330 L 590,310 L 540,290 L 490,270 L 450,250 L 420,220 Z" fill="#88c288" stroke="#5a8a5f" strokeWidth="1.5" />
+              <path d="M 680,280 Q 700,270 730,280 L 760,300 L 780,330 L 770,360 L 750,380 L 720,370 L 700,350 L 690,320 Z" fill="#88c288" stroke="#5a8a5f" strokeWidth="1.5" />
+
+              {/* 中東 */}
+              <path d="M 440,280 Q 460,270 480,280 L 500,300 L 490,320 L 470,330 L 450,320 L 445,300 Z" fill="#d4c896" stroke="#a68a5f" strokeWidth="1.5" />
+
+              {/* インド亜大陸 */}
+              <path d="M 660,280 Q 680,270 700,280 L 720,310 L 710,340 Q 690,350 670,340 L 660,310 Z" fill="#8bc48a" stroke="#5a8a5f" strokeWidth="1.5" />
+
+              {/* 東南アジア */}
+              <path d="M 730,320 L 750,330 L 760,350 L 750,370 L 730,360 L 725,340 Z" fill="#90c695" stroke="#5a8a5f" strokeWidth="1.5" />
+
+              {/* オーストラリア大陸 */}
+              <path d="M 780,420 Q 810,410 840,420 L 870,450 L 860,480 Q 840,490 820,480 L 790,460 L 785,440 Z" fill="#d4b896" stroke="#a68a5f" strokeWidth="1.5" />
+
+              {/* 日本列島 */}
+              <ellipse cx="850" cy="220" rx="15" ry="35" fill="#90c695" stroke="#5a8a5f" strokeWidth="1" transform="rotate(20 850 220)" />
+
+              {/* グリーンランド */}
+              <path d="M 320,50 Q 350,40 380,60 L 390,90 L 370,110 Q 350,115 330,100 L 325,75 Z" fill="#e8f0e8" stroke="#b0c0b0" strokeWidth="1" />
+
+              {/* 島々の装飾 */}
+              <circle cx="60" cy="300" r="8" fill="#8bc48a" stroke="#5a8a5f" strokeWidth="0.5" />
+              <circle cx="900" cy="340" r="6" fill="#90c695" stroke="#5a8a5f" strokeWidth="0.5" />
+
+              {/* ルート線 */}
+              {WORLD_HERITAGE_ROUTE.map((site, index) => {
+                if (index >= WORLD_HERITAGE_ROUTE.length - 1) return null;
+                const nextSite = WORLD_HERITAGE_ROUTE[index + 1];
+                const isPassed = site.position < currentPosition;
+                const isCurrent = site.position === currentPosition;
+
+                return (
+                  <line
+                    key={`line-${site.position}`}
+                    x1={site.x}
+                    y1={site.y}
+                    x2={nextSite.x}
+                    y2={nextSite.y}
+                    stroke={isPassed ? "#9ca3af" : isCurrent ? "#fbbf24" : "#60a5fa"}
+                    strokeWidth="2"
+                    strokeDasharray="6,3"
+                    opacity={isPassed ? "0.3" : "0.7"}
+                  />
+                );
+              })}
+
+              {/* 名所のマーカー */}
+              {WORLD_HERITAGE_ROUTE.map((site) => {
+                const isPassed = site.position < currentPosition;
+                const isCurrent = site.position === currentPosition;
+
+                return (
+                  <g key={site.position} className="cursor-pointer group">
+                    {/* 番号の円 */}
+                    <circle
+                      cx={site.x}
+                      cy={site.y}
+                      r="20"
+                      fill={
+                        isCurrent
+                          ? "#fbbf24"
+                          : isPassed
+                          ? "#d1d5db"
+                          : "#ffffff"
+                      }
+                      stroke={
+                        isCurrent
+                          ? "#d97706"
+                          : isPassed
+                          ? "#9ca3af"
+                          : "#3b82f6"
+                      }
+                      strokeWidth="3"
+                      className={`transition-all ${isCurrent ? "animate-pulse" : ""}`}
+                    />
+                    {/* 番号テキスト */}
+                    <text
+                      x={site.x}
+                      y={site.y}
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      className={`font-bold text-sm ${
+                        isCurrent
+                          ? "fill-white"
+                          : isPassed
+                          ? "fill-gray-600"
+                          : "fill-blue-600"
+                      }`}
+                      fontSize="16"
                     >
-                      <line
-                        x1="0"
-                        y1="0"
-                        x2={`${(WORLD_HERITAGE_ROUTE[index + 1].x - site.x) * 10}px`}
-                        y2={`${(WORLD_HERITAGE_ROUTE[index + 1].y - site.y) * 10}px`}
-                        stroke={isPassed ? "#9ca3af" : isCurrent ? "#fbbf24" : "#60a5fa"}
-                        strokeWidth="3"
-                        strokeDasharray="8,4"
-                        opacity={isPassed ? "0.3" : "0.7"}
-                      />
-                    </svg>
-                  )}
-                </div>
-              );
-            })}
+                      {site.position}
+                    </text>
+                    {/* ホバー時のツールチップ */}
+                    <title>{`${site.icon} ${site.name}`}</title>
+                  </g>
+                );
+              })}
+            </svg>
           </div>
 
           {/* 名所一覧（地図の下） */}
