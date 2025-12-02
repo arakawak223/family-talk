@@ -19,7 +19,6 @@ import {
 import { getUserPoints } from "@/lib/api/points";
 import { SugorokuSquareItem } from "./sugoroku-square";
 import { DiceRoller } from "./dice-roller";
-import { WorldMapModal } from "./world-map-modal";
 
 interface SugorokuBoardProps {
   userId: string;
@@ -35,7 +34,6 @@ export function SugorokuBoard({ userId, familyId }: SugorokuBoardProps) {
   const [loading, setLoading] = useState(true);
   const [showDiceRoller, setShowDiceRoller] = useState(false);
   const [initLoading, setInitLoading] = useState(false);
-  const [showWorldMap, setShowWorldMap] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -205,21 +203,11 @@ export function SugorokuBoard({ userId, familyId }: SugorokuBoardProps) {
       {/* 双六ボード */}
       <Card className="bg-gradient-to-br from-sky-100 via-blue-50 to-indigo-100">
         <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span>🗺️ 世界の旅</span>
-              <span className="text-sm font-normal text-gray-600">
-                ～ {progress.board.name} ～
-              </span>
-            </div>
-            <Button
-              onClick={() => setShowWorldMap(true)}
-              variant="outline"
-              size="sm"
-              className="bg-white hover:bg-blue-50"
-            >
-              🌍 ルート地図を見る
-            </Button>
+          <CardTitle className="flex items-center gap-2">
+            <span>🗺️ 世界の旅</span>
+            <span className="text-sm font-normal text-gray-600">
+              ～ {progress.board.name} ～
+            </span>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -387,13 +375,6 @@ export function SugorokuBoard({ userId, familyId }: SugorokuBoardProps) {
           </CardContent>
         </Card>
       )}
-
-      {/* 世界地図モーダル */}
-      <WorldMapModal
-        open={showWorldMap}
-        onOpenChange={setShowWorldMap}
-        currentPosition={progress.current_position}
-      />
     </div>
   );
 }
