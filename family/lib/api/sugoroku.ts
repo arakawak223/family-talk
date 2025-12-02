@@ -13,6 +13,7 @@ import {
   QuizEventData,
 } from "@/lib/types/sugoroku";
 import { consumePoints } from "./points";
+import { getRandomQuiz } from "@/lib/data/quiz-pool";
 
 // サイコロ/ルーレット設定
 const ROLL_COSTS = {
