@@ -22,6 +22,8 @@ export function SugorokuSquareItem({
         return "bg-gradient-to-br from-pink-300 via-purple-300 to-indigo-400 border-purple-500";
       case "bonus":
         return "bg-gradient-to-br from-yellow-300 to-amber-400 border-yellow-600";
+      case "quiz":
+        return "bg-gradient-to-br from-indigo-300 via-blue-300 to-cyan-400 border-indigo-500";
       case "chance":
         return "bg-gradient-to-br from-purple-400 to-fuchsia-500 border-purple-600";
       case "family_event":
@@ -52,6 +54,8 @@ export function SugorokuSquareItem({
         return "🎁";
       case "bonus":
         return "💰";
+      case "quiz":
+        return "❓";
       case "chance":
         return "🎰";
       case "family_event":
@@ -69,6 +73,11 @@ export function SugorokuSquareItem({
     // ゴールは特別
     if (square.square_type === "goal") {
       return square.location?.landmark || "ゴール";
+    }
+
+    // クイズマスの場合
+    if (square.square_type === "quiz") {
+      return "クイズ";
     }
 
     // 地理情報がある場合は優先的に使用

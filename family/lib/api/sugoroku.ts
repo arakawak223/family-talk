@@ -10,6 +10,7 @@ import {
   RollType,
   UserGift,
   FamilyRanking,
+  QuizEventData,
 } from "@/lib/types/sugoroku";
 import { consumePoints } from "./points";
 
@@ -174,6 +175,7 @@ export async function rollDice(
   eventMessage?: string;
   giftName?: string;
   giftRarity?: string;
+  quizData?: QuizEventData;
 }> {
   const supabase = createClient();
 
@@ -270,12 +272,14 @@ export async function rollDice(
     let eventMessage = '';
     let giftName: string | undefined;
     let giftRarity: string | undefined;
+    let quizData: QuizEventData | undefined;
     if (square) {
       console.log("Calling processSquareEvent for square:", square);
       const eventResult = await processSquareEvent(userId, familyId, square);
       eventMessage = eventResult.message;
       giftName = eventResult.giftName;
       giftRarity = eventResult.giftRarity;
+      quizData = eventResult.quizData;
     } else {
       console.log("No square data found for position:", newPosition);
     }
@@ -288,6 +292,7 @@ export async function rollDice(
       eventMessage,
       giftName,
       giftRarity,
+      quizData,
     };
   } catch (error) {
     console.error("Error rolling dice:", error);
@@ -305,7 +310,7 @@ async function processSquareEvent(
   userId: string,
   familyId: string,
   square: SugorokuSquare
-): Promise<{ message: string; giftName?: string; giftRarity?: string }> {
+): Promise<{ message: string; giftName?: string; giftRarity?: string; quizData?: QuizEventData }> {
   const supabase = createClient();
 
   try {
@@ -314,6 +319,17 @@ async function processSquareEvent(
     console.log("Square event_data:", square.event_data);
 
     switch (square.square_type) {
+      case 'quiz':
+        // クイズマスに止まった場合、クイズデータを返す
+        if (square.event_data && 'question' in square.event_data) {
+          const quizData = square.event_data as QuizEventData;
+          return {
+            message: '',
+            quizData,
+          };
+        }
+        break;
+
       case 'gift':
         // ギフトを付与
         const giftInfo = await grantRandomGift(userId, square);
@@ -519,6 +535,43 @@ export async function getUserGifts(userId: string): Promise<UserGift[]> {
   }
 
   return data || [];
+}
+
+/**
+ * クイズ回答を処理してポイントを付与
+ */
+export async function submitQuizAnswer(
+  userId: string,
+  familyId: string,
+  isCorrect: boolean,
+  points: number
+): Promise<{ success: boolean; message: string }> {
+  if (!isCorrect) {
+    return {
+      success: true,
+      message: '不正解でした。次回頑張りましょう！',
+    };
+  }
+
+  try {
+    await addBonusPoints(
+      userId,
+      familyId,
+      points,
+      `クイズ正解ボーナス: +${points}pt`
+    );
+
+    return {
+      success: true,
+      message: `正解！ +${points}ポイント獲得しました！`,
+    };
+  } catch (error) {
+    console.error("Error submitting quiz answer:", error);
+    return {
+      success: false,
+      message: 'エラーが発生しました',
+    };
+  }
 }
 
 /**

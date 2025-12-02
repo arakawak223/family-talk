@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { rollDice } from "@/lib/api/sugoroku";
-import { RollType, SugorokuSquare } from "@/lib/types/sugoroku";
+import { rollDice, submitQuizAnswer } from "@/lib/api/sugoroku";
+import { RollType, SugorokuSquare, QuizEventData } from "@/lib/types/sugoroku";
+import { QuizModal } from "./quiz-modal";
 
 interface DiceRollerProps {
   userId: string;
@@ -27,6 +28,36 @@ export function DiceRoller({
   const [message, setMessage] = useState<string>("");
   const [giftName, setGiftName] = useState<string>("");
   const [giftRarity, setGiftRarity] = useState<string>("");
+  const [quizData, setQuizData] = useState<QuizEventData | null>(null);
+  const [showQuizModal, setShowQuizModal] = useState(false);
+
+  const handleQuizAnswer = async (isCorrect: boolean, selectedIndex: number) => {
+    if (!quizData) return;
+
+    // クイズ回答をサーバーに送信
+    try {
+      const response = await submitQuizAnswer(
+        userId,
+        familyId,
+        isCorrect,
+        quizData.points
+      );
+
+      if (response.success) {
+        setMessage(response.message);
+      }
+    } catch (error) {
+      console.error("Error submitting quiz answer:", error);
+    }
+
+    // クイズモーダルを閉じる
+    setShowQuizModal(false);
+
+    // 結果を表示してから完了
+    setTimeout(() => {
+      onComplete();
+    }, 3000);
+  };
 
   const handleRoll = async (rollType: RollType) => {
     const cost = rollType === "dice" ? 50 : 70;
@@ -42,6 +73,8 @@ export function DiceRoller({
     setMessage("");
     setGiftName("");
     setGiftRarity("");
+    setQuizData(null);
+    setShowQuizModal(false);
 
     // アニメーション効果
     await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -52,6 +85,13 @@ export function DiceRoller({
       if (response.success && response.result !== undefined) {
         setResult(response.result);
         setSquare(response.square || null);
+
+        // クイズマスに止まった場合
+        if (response.quizData) {
+          setQuizData(response.quizData);
+          setShowQuizModal(true);
+          return; // クイズ回答後に完了
+        }
 
         // ギフト情報を設定
         if (response.giftName) {
@@ -87,12 +127,23 @@ export function DiceRoller({
   };
 
   return (
-    <Card className="border-4 border-blue-300">
-      <CardHeader>
-        <CardTitle className="text-center">
-          {result === null ? "サイコロ・ルーレットを選択" : "結果"}
-        </CardTitle>
-      </CardHeader>
+    <>
+      {/* クイズモーダル */}
+      {quizData && (
+        <QuizModal
+          open={showQuizModal}
+          onOpenChange={setShowQuizModal}
+          quizData={quizData}
+          onAnswer={handleQuizAnswer}
+        />
+      )}
+
+      <Card className="border-4 border-blue-300">
+        <CardHeader>
+          <CardTitle className="text-center">
+            {result === null ? "サイコロ・ルーレットを選択" : "結果"}
+          </CardTitle>
+        </CardHeader>
       <CardContent className="space-y-4">
         {result === null ? (
           <>
@@ -159,6 +210,7 @@ export function DiceRoller({
                   <div className="text-6xl mb-3">
                     {square?.square_type === "gift" ? "🎁" :
                      square?.square_type === "bonus" ? "💰" :
+                     square?.square_type === "quiz" ? "❓" :
                      square?.square_type === "goal" ? "🎉" :
                      square?.square_type === "family_event" ? "👨‍👩‍👧‍👦" : "✨"}
                   </div>
@@ -206,6 +258,7 @@ export function DiceRoller({
         )}
       </CardContent>
     </Card>
+    </>
   );
 }
 
@@ -214,6 +267,7 @@ function getSquareTypeLabel(squareType: string): string {
     normal: "通常マス",
     gift: "🎁 ギフトマス",
     bonus: "💰 ボーナスマス",
+    quiz: "❓ クイズマス",
     chance: "🎰 チャンスマス",
     family_event: "👨‍👩‍👧‍👦 家族イベントマス",
     mission: "📝 ミッションマス",

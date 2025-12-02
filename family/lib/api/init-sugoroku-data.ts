@@ -81,7 +81,17 @@ export async function initializeBoardSquares(boardNumber: number) {
       location: { country: '日本', region: '東京', landmark: '東京タワー', icon: '🗼', description: '東京のシンボル、333mの電波塔' }
     },
     {
-      position: 1, square_type: 'normal', event_data: {}, description: '富士山を眺めよう',
+      position: 1, square_type: 'quiz',
+      event_data: {
+        category: 'geography',
+        difficulty: 'easy',
+        question: '富士山の標高は何メートル？',
+        options: ['3,776m', '3,333m', '4,000m', '3,500m'],
+        correctAnswer: 0,
+        points: 30,
+        explanation: '富士山の標高は3,776mで、日本最高峰の山です。'
+      },
+      description: '富士山クイズ',
       location: { country: '日本', region: '静岡・山梨', landmark: '富士山', icon: '🗻', description: '日本最高峰、標高3,776mの霊峰' }
     },
     {
@@ -93,7 +103,17 @@ export async function initializeBoardSquares(boardNumber: number) {
       location: { country: 'タイ', region: 'バンコク', landmark: 'ワット・アルン', icon: '🛕', description: '暁の寺として知られる美しい寺院' }
     },
     {
-      position: 4, square_type: 'normal', event_data: {}, description: '世界遺産の遺跡',
+      position: 4, square_type: 'quiz',
+      event_data: {
+        category: 'history',
+        difficulty: 'easy',
+        question: 'アンコールワットはどの国にある？',
+        options: ['カンボジア', 'タイ', 'ベトナム', 'ラオス'],
+        correctAnswer: 0,
+        points: 30,
+        explanation: 'アンコールワットはカンボジアにある12世紀建造の巨大な石造寺院です。'
+      },
+      description: 'アンコールワットクイズ',
       location: { country: 'カンボジア', region: 'シェムリアップ', landmark: 'アンコールワット', icon: '🏛️', description: '12世紀建造の巨大な石造寺院' }
     },
     {
@@ -109,7 +129,17 @@ export async function initializeBoardSquares(boardNumber: number) {
       location: { country: 'UAE', region: 'ドバイ', landmark: 'ブルジュ・ハリファ', icon: '🏙️', description: '世界一高い超高層ビル、828m' }
     },
     {
-      position: 8, square_type: 'normal', event_data: {}, description: '古代文明の遺跡',
+      position: 8, square_type: 'quiz',
+      event_data: {
+        category: 'history',
+        difficulty: 'medium',
+        question: 'ギザの大ピラミッドは誰のために建てられた？',
+        options: ['クフ王', 'ツタンカーメン', 'クレオパトラ', 'ラムセス2世'],
+        correctAnswer: 0,
+        points: 50,
+        explanation: 'ギザの大ピラミッドは紀元前2500年頃、クフ王のために建てられた巨大な墳墓です。'
+      },
+      description: 'ピラミッドクイズ',
       location: { country: 'エジプト', region: 'カイロ', landmark: 'ピラミッド', icon: '🏜️', description: '紀元前2500年建造の巨大な墳墓' }
     },
     {
@@ -125,7 +155,17 @@ export async function initializeBoardSquares(boardNumber: number) {
       location: { country: 'ジンバブエ', region: 'ビクトリアフォールズ', landmark: 'ビクトリアの滝', icon: '💧', description: '世界三大瀑布の一つ' }
     },
     {
-      position: 12, square_type: 'normal', event_data: {}, description: 'ギリシャの古代遺跡',
+      position: 12, square_type: 'quiz',
+      event_data: {
+        category: 'history',
+        difficulty: 'medium',
+        question: 'パルテノン神殿はどの女神を祀っている？',
+        options: ['アテナ', 'アフロディーテ', 'ヘラ', 'アルテミス'],
+        correctAnswer: 0,
+        points: 50,
+        explanation: 'パルテノン神殿は紀元前5世紀に建てられた、知恵と戦争の女神アテナを祀る神殿です。'
+      },
+      description: 'ギリシャクイズ',
       location: { country: 'ギリシャ', region: 'アテネ', landmark: 'パルテノン神殿', icon: '🏛️', description: '紀元前5世紀建造の女神アテナの神殿' }
     },
     {
@@ -141,7 +181,17 @@ export async function initializeBoardSquares(boardNumber: number) {
       location: { country: 'フランス', region: 'パリ', landmark: 'エッフェル塔', icon: '🗼', description: 'パリのシンボル、高さ324mの鉄塔' }
     },
     {
-      position: 16, square_type: 'normal', event_data: {}, description: '海に浮かぶ修道院',
+      position: 16, square_type: 'quiz',
+      event_data: {
+        category: 'geography',
+        difficulty: 'easy',
+        question: 'フランスの首都はどこ？',
+        options: ['パリ', 'マルセイユ', 'リヨン', 'ボルドー'],
+        correctAnswer: 0,
+        points: 30,
+        explanation: 'フランスの首都はパリで、エッフェル塔やルーブル美術館などの名所があります。'
+      },
+      description: 'フランスクイズ',
       location: { country: 'フランス', region: 'ノルマンディー', landmark: 'モンサンミッシェル', icon: '🏰', description: '海に浮かぶ神秘的な修道院' }
     },
     {
@@ -157,7 +207,17 @@ export async function initializeBoardSquares(boardNumber: number) {
       location: { country: 'カナダ', region: 'アルバータ', landmark: 'バンフ国立公園', icon: '🦌', description: 'カナディアンロッキーの美しい国立公園' }
     },
     {
-      position: 20, square_type: 'normal', event_data: {}, description: 'アメリカの象徴',
+      position: 20, square_type: 'quiz',
+      event_data: {
+        category: 'culture',
+        difficulty: 'medium',
+        question: '自由の女神像はどの国からアメリカへの贈り物？',
+        options: ['フランス', 'イギリス', 'イタリア', 'スペイン'],
+        correctAnswer: 0,
+        points: 50,
+        explanation: '自由の女神像は1886年、独立100周年を記念してフランスからアメリカへ贈られました。'
+      },
+      description: '自由の女神クイズ',
       location: { country: 'アメリカ', region: 'ニューヨーク', landmark: '自由の女神', icon: '🗽', description: '自由と民主主義の象徴' }
     },
     {
@@ -173,7 +233,17 @@ export async function initializeBoardSquares(boardNumber: number) {
       location: { country: 'アメリカ', region: 'ハワイ', landmark: 'キラウエア火山', icon: '🌋', description: '活発な火山活動で有名' }
     },
     {
-      position: 24, square_type: 'normal', event_data: {}, description: '天空の遺跡',
+      position: 24, square_type: 'quiz',
+      event_data: {
+        category: 'history',
+        difficulty: 'hard',
+        question: 'マチュピチュを建設した文明は？',
+        options: ['インカ帝国', 'アステカ帝国', 'マヤ文明', 'オルメカ文明'],
+        correctAnswer: 0,
+        points: 70,
+        explanation: 'マチュピチュは15世紀頃にインカ帝国によって建設された空中都市です。'
+      },
+      description: 'マチュピチュクイズ',
       location: { country: 'ペルー', region: 'クスコ', landmark: 'マチュピチュ', icon: '⛰️', description: '15世紀インカ帝国の空中都市' }
     },
     {

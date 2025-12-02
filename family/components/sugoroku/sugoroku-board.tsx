@@ -276,7 +276,7 @@ export function SugorokuBoard({ userId, familyId }: SugorokuBoardProps) {
           {/* 凡例 */}
           <div className="mt-6 p-4 bg-white bg-opacity-80 rounded-lg">
             <p className="text-xs font-semibold text-gray-700 mb-2">マスの種類：</p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
               <div className="flex items-center gap-1">
                 <span className="w-4 h-4 bg-gradient-to-br from-pink-300 to-indigo-400 rounded border"></span>
                 <span>🎁 ギフト</span>
@@ -284,6 +284,10 @@ export function SugorokuBoard({ userId, familyId }: SugorokuBoardProps) {
               <div className="flex items-center gap-1">
                 <span className="w-4 h-4 bg-gradient-to-br from-yellow-300 to-amber-400 rounded border"></span>
                 <span>💰 ボーナス</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="w-4 h-4 bg-gradient-to-br from-indigo-300 to-cyan-400 rounded border"></span>
+                <span>❓ クイズ</span>
               </div>
               <div className="flex items-center gap-1">
                 <span className="w-4 h-4 bg-gradient-to-br from-green-300 to-emerald-400 rounded border"></span>

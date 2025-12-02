@@ -58,6 +58,7 @@ export type SquareType =
   | 'normal'
   | 'gift'
   | 'bonus'
+  | 'quiz'          // クイズマス
   | 'chance'
   | 'family_event'
   | 'mission'
@@ -115,9 +116,27 @@ export interface GoalEventData {
   message: string;
 }
 
+// クイズカテゴリー
+export type QuizCategory = 'geography' | 'history' | 'culture' | 'politics' | 'nature';
+
+// クイズ難易度
+export type QuizDifficulty = 'easy' | 'medium' | 'hard';
+
+// クイズイベントデータ
+export interface QuizEventData {
+  category: QuizCategory;
+  difficulty: QuizDifficulty;
+  question: string;
+  options: string[];           // 選択肢（4つ）
+  correctAnswer: number;       // 正解のインデックス（0-3）
+  points: number;              // 正解時の獲得ポイント
+  explanation?: string;        // 解説
+}
+
 export type EventData =
   | GiftEventData
   | BonusEventData
+  | QuizEventData
   | ChanceEventData
   | FamilyEventData
   | MissionEventData
