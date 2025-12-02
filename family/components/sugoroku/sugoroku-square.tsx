@@ -8,40 +8,6 @@ interface SugorokuSquareItemProps {
   isPassed: boolean;
 }
 
-// 30の世界遺産名所（西回りルート：日本 → アジア → 中東 → ヨーロッパ → アフリカ → アメリカ → 太平洋）
-const WORLD_HERITAGE_SITES = [
-  { icon: "🗻", name: "富士山" },              // 0: 日本
-  { icon: "⛩️", name: "厳島神社" },            // 1: 日本
-  { icon: "🐼", name: "九寨溝" },              // 2: 中国
-  { icon: "🏯", name: "万里の長城" },          // 3: 中国
-  { icon: "🏛️", name: "紫禁城" },             // 4: 中国
-  { icon: "🕌", name: "タージマハル" },         // 5: インド
-  { icon: "🛕", name: "アンコールワット" },     // 6: カンボジア
-  { icon: "🏔️", name: "エベレスト" },          // 7: ネパール
-  { icon: "🏜️", name: "ピラミッド" },          // 8: エジプト
-  { icon: "🐫", name: "サハラ砂漠" },          // 9: アフリカ
-  { icon: "🦁", name: "セレンゲティ" },        // 10: タンザニア
-  { icon: "💧", name: "ビクトリア滝" },        // 11: ジンバブエ
-  { icon: "🏛️", name: "アテネ神殿" },         // 12: ギリシャ
-  { icon: "🏟️", name: "コロッセオ" },         // 13: イタリア
-  { icon: "🗼", name: "ピサの斜塔" },          // 14: イタリア
-  { icon: "🕌", name: "アルハンブラ宮殿" },     // 15: スペイン
-  { icon: "⛪", name: "サグラダファミリア" },   // 16: スペイン
-  { icon: "🏰", name: "モンサンミッシェル" },   // 17: フランス
-  { icon: "🗼", name: "エッフェル塔" },        // 18: フランス
-  { icon: "🌉", name: "タワーブリッジ" },      // 19: イギリス
-  { icon: "🦌", name: "バンフ国立公園" },      // 20: カナダ
-  { icon: "🗽", name: "自由の女神" },          // 21: アメリカ
-  { icon: "🏞️", name: "グランドキャニオン" },  // 22: アメリカ
-  { icon: "🌁", name: "ゴールデンゲート" },     // 23: アメリカ
-  { icon: "🌋", name: "ハワイ火山" },          // 24: アメリカ
-  { icon: "⛰️", name: "マチュピチュ" },        // 25: ペルー
-  { icon: "🌴", name: "イグアスの滝" },        // 26: ブラジル
-  { icon: "🗿", name: "イースター島" },        // 27: チリ
-  { icon: "🎭", name: "シドニーオペラハウス" }, // 28: オーストラリア
-  { icon: "🌲", name: "ブルーマウンテン" },    // 29: オーストラリア
-];
-
 export function SugorokuSquareItem({
   square,
   isCurrentPosition,
@@ -75,6 +41,11 @@ export function SugorokuSquareItem({
     // ゴールは特別
     if (square.square_type === "goal") return "🏁";
 
+    // 地理情報がある場合は優先的に使用
+    if (square.location) {
+      return square.location.icon;
+    }
+
     // イベントタイプによるアイコン
     switch (square.square_type) {
       case "gift":
@@ -90,15 +61,20 @@ export function SugorokuSquareItem({
       case "rest":
         return "☕";
       default:
-        // 通常マスは世界遺産名所アイコンを順番に表示（30個まで、それ以降は繰り返さない）
-        const site = WORLD_HERITAGE_SITES[square.position % WORLD_HERITAGE_SITES.length];
-        return site ? site.icon : "🌍";
+        return "🌍";
     }
   };
 
   const getLandmarkName = () => {
     // ゴールは特別
-    if (square.square_type === "goal") return "ゴール";
+    if (square.square_type === "goal") {
+      return square.location?.landmark || "ゴール";
+    }
+
+    // 地理情報がある場合は優先的に使用
+    if (square.location) {
+      return square.location.landmark;
+    }
 
     // イベントタイプによる名前
     switch (square.square_type) {
@@ -115,22 +91,27 @@ export function SugorokuSquareItem({
       case "rest":
         return "休憩";
       default:
-        // 通常マスは世界遺産名所の名前を表示
-        const site = WORLD_HERITAGE_SITES[square.position % WORLD_HERITAGE_SITES.length];
-        return site ? site.name : "世界";
+        return "世界";
     }
+  };
+
+  const getTooltipText = () => {
+    if (square.location) {
+      return `${square.position}: ${square.location.landmark}\n${square.location.country} - ${square.location.region}\n${square.location.description || ''}`;
+    }
+    return `${square.position}: ${getLandmarkName()}`;
   };
 
   return (
     <div
       className={`
-        relative aspect-square rounded-xl border-3 flex flex-col items-center justify-center
+        relative aspect-square rounded-xl border-3 flex flex-col items-center justify-center group
         ${getSquareColor()}
         ${isCurrentPosition ? 'scale-110 z-10 shadow-2xl ring-4 ring-yellow-400 ring-offset-2' : ''}
         ${!isPassed && !isCurrentPosition ? 'hover:scale-105 cursor-pointer' : ''}
         transition-all duration-300 transform
       `}
-      title={`${square.position}: ${getLandmarkName()}`}
+      title={getTooltipText()}
     >
       {/* 位置番号 */}
       <span className={`absolute top-0.5 left-0.5 text-xs px-1.5 py-0.5 rounded-md font-bold ${
@@ -148,6 +129,13 @@ export function SugorokuSquareItem({
       <span className="text-[0.5rem] font-semibold text-gray-800 text-center leading-tight px-0.5 bg-white bg-opacity-70 rounded">
         {getLandmarkName()}
       </span>
+
+      {/* 国名ラベル（地理情報がある場合のみ） */}
+      {square.location && square.square_type !== 'goal' && (
+        <span className="text-[0.4rem] text-gray-600 text-center leading-none mt-0.5 px-1 bg-blue-50 bg-opacity-80 rounded">
+          {square.location.country}
+        </span>
+      )}
 
       {/* 通過済みの半透明オーバーレイ */}
       {isPassed && !isCurrentPosition && (

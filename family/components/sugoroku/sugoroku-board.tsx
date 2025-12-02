@@ -123,6 +123,7 @@ export function SugorokuBoard({ userId, familyId }: SugorokuBoardProps) {
   }
 
   const myRank = ranking.find(r => r.user_id === userId);
+  const currentSquare = squares.find(s => s.position === progress.current_position);
 
   return (
     <div className="space-y-6">
@@ -153,6 +154,25 @@ export function SugorokuBoard({ userId, familyId }: SugorokuBoardProps) {
           </CardTitle>
         </CardHeader>
         <CardContent>
+          {/* 現在位置の地理情報 */}
+          {currentSquare?.location && (
+            <div className="mb-4 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border-2 border-blue-200">
+              <p className="text-xs font-semibold text-gray-600 mb-1">📍 現在地</p>
+              <div className="flex items-center gap-2">
+                <span className="text-3xl">{currentSquare.location.icon}</span>
+                <div>
+                  <p className="font-bold text-lg">{currentSquare.location.landmark}</p>
+                  <p className="text-sm text-gray-600">
+                    {currentSquare.location.country} - {currentSquare.location.region}
+                  </p>
+                  {currentSquare.location.description && (
+                    <p className="text-xs text-gray-500 mt-1">{currentSquare.location.description}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
               <p className="text-sm text-gray-500">現在のポイント</p>
@@ -203,11 +223,16 @@ export function SugorokuBoard({ userId, familyId }: SugorokuBoardProps) {
       {/* 双六ボード */}
       <Card className="bg-gradient-to-br from-sky-100 via-blue-50 to-indigo-100">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <span>🗺️ 世界の旅</span>
-            <span className="text-sm font-normal text-gray-600">
-              ～ {progress.board.name} ～
-            </span>
+          <CardTitle className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <span>🗺️ 世界一周の旅</span>
+              <span className="text-sm font-normal text-gray-600">
+                ～ {progress.board.name} ～
+              </span>
+            </div>
+            <p className="text-sm font-normal text-gray-600">
+              東京から出発して世界の名所を巡り、再び東京に戻ってくる旅
+            </p>
           </CardTitle>
         </CardHeader>
         <CardContent>

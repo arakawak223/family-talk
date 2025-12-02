@@ -64,6 +64,19 @@ export type SquareType =
   | 'rest'
   | 'goal';
 
+// 地理情報
+export interface LocationInfo {
+  country: string;           // 国名
+  region: string;            // 地域・都市名
+  landmark: string;          // 名所名
+  latitude?: number;         // 緯度
+  longitude?: number;        // 経度
+  description?: string;      // 説明
+  imageUrl?: string;         // 画像URL
+  icon: string;              // 絵文字アイコン
+  funFact?: string;          // 豆知識
+}
+
 // マスイベントデータの型
 export interface GiftEventData {
   rarity: 'common' | 'rare' | 'legendary';
@@ -119,6 +132,7 @@ export interface SugorokuSquare {
   square_type: SquareType;
   event_data: EventData | null;
   description: string | null;
+  location: LocationInfo | null;  // 地理情報を追加
   created_at: string;
 }
 
