@@ -31,7 +31,8 @@ export function DiceRoller({
   const [quizData, setQuizData] = useState<QuizEventData | null>(null);
   const [showQuizModal, setShowQuizModal] = useState(false);
 
-  const handleQuizAnswer = async (isCorrect: boolean, selectedIndex: number) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const handleQuizAnswer = async (isCorrect: boolean, _selectedIndex: number) => {
     if (!quizData) return;
 
     // クイズ回答をサーバーに送信

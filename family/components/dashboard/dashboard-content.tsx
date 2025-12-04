@@ -183,27 +183,68 @@ export function DashboardContent({ user }: DashboardContentProps) {
         </CardContent>
       </Card>
 
-      {/* 双六ボード */}
-      <div className="mb-8">
-        {/* 開発用: 初期化ボタン */}
-        <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <p className="text-sm text-yellow-800 mb-2">
-            開発用: 双六データ初期化ボタン
-          </p>
-          <Button
-            onClick={handleInitSugoroku}
-            disabled={initLoading}
-            variant="outline"
-            size="sm"
-          >
-            {initLoading ? '初期化中...' : 'ギフト＆マスデータを初期化'}
-          </Button>
-        </div>
-        <SugorokuBoard
-          userId={user.profile?.id || ""}
-          familyId={selectedFamily.id}
-          key={`${selectedFamily.id}-${refreshSugoroku}`}
-        />
+      {/* ゲームセクション */}
+      <div className="mb-8 space-y-4">
+        <h2 className="text-xl font-bold flex items-center gap-2">
+          🎮 ゲーム
+        </h2>
+
+        {/* 世界感動旅行 - 新ゲーム */}
+        <Card className="border-2 border-sky-200 bg-gradient-to-r from-sky-50 to-blue-50">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="text-5xl">✈️</div>
+                <div>
+                  <h3 className="text-lg font-bold text-sky-800">世界感動旅行</h3>
+                  <p className="text-sm text-gray-600">
+                    世界中の空港を巡り、感動ポイントを集めよう！
+                  </p>
+                  <p className="text-xs text-sky-600 mt-1">
+                    🌍 50空港 • 🏛️ 20+観光スポット • 💖 5種類の感動
+                  </p>
+                </div>
+              </div>
+              <Button
+                onClick={() => router.push("/world-tour")}
+                className="bg-sky-600 hover:bg-sky-700"
+                size="lg"
+              >
+                プレイする →
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 従来の双六ボード */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              🎲 世界一周すごろく（旧バージョン）
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {/* 開発用: 初期化ボタン */}
+            <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-xs text-yellow-800 mb-2">
+                開発用: 双六データ初期化ボタン
+              </p>
+              <Button
+                onClick={handleInitSugoroku}
+                disabled={initLoading}
+                variant="outline"
+                size="sm"
+              >
+                {initLoading ? '初期化中...' : 'ギフト＆マスデータを初期化'}
+              </Button>
+            </div>
+            <SugorokuBoard
+              userId={user.profile?.id || ""}
+              familyId={selectedFamily.id}
+              key={`${selectedFamily.id}-${refreshSugoroku}`}
+            />
+          </CardContent>
+        </Card>
       </div>
 
       {/* メッセージカレンダー */}
