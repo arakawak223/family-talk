@@ -11,7 +11,7 @@ interface AirportPanelProps {
   nearbySpots?: TouristSpot[];
   visitedAttractions?: string[];  // 訪問済み観光名所のID (airportCode-index形式)
   visitedFoods?: string[];        // 訪問済みグルメのID (airportCode-index形式)
-  onVisitAttraction?: (airportCode: string, index: number, name: string, points: number, category: EmotionCategory) => void;
+  onVisitAttraction?: (airportCode: string, index: number, name: string, points: number, category: EmotionCategory, isPowerSpot?: boolean) => void;
   onVisitFood?: (airportCode: string, index: number, name: string, points: number) => void;
   canInteract?: boolean;          // 現在地の場合のみインタラクション可能
 }
@@ -125,17 +125,27 @@ export function AirportPanel({
                     }`}
                     onClick={() => {
                       if (canClick) {
-                        onVisitAttraction(airportData.code, index, attraction.name, attraction.emotionPoints, attraction.emotionCategory);
+                        onVisitAttraction(airportData.code, index, attraction.name, attraction.emotionPoints, attraction.emotionCategory, attraction.isPowerSpot);
                       }
                     }}
                   >
                     <div className="flex items-center gap-2">
                       <span className="text-xl">{attraction.icon}</span>
                       <div className="flex-1">
-                        <p className="font-semibold">{attraction.name}</p>
+                        <div className="flex items-center gap-1">
+                          <p className="font-semibold">{attraction.name}</p>
+                          {attraction.isPowerSpot && (
+                            <span className="text-yellow-500" title="パワースポット">✨</span>
+                          )}
+                        </div>
                         <p className="text-xs text-gray-500">
                           {attraction.description}
                         </p>
+                        {attraction.isPowerSpot && !isVisited && (
+                          <p className="text-xs text-amber-600 font-medium mt-1">
+                            ⚡ パワースポット: 訪問するとサイコロ2〜3倍！
+                          </p>
+                        )}
                       </div>
                       {isVisited ? (
                         <Badge variant="secondary" className="bg-green-100 text-green-700">
@@ -144,7 +154,12 @@ export function AirportPanel({
                       ) : (
                         <Badge
                           variant="secondary"
-                          className={canClick ? "bg-sky-200 text-sky-800" : "bg-sky-100 text-sky-700"}
+                          className={attraction.isPowerSpot
+                            ? "bg-gradient-to-r from-yellow-200 to-amber-200 text-amber-800"
+                            : canClick
+                            ? "bg-sky-200 text-sky-800"
+                            : "bg-sky-100 text-sky-700"
+                          }
                         >
                           {EMOTION_LABELS[attraction.emotionCategory]?.icon}{" "}
                           +{attraction.emotionPoints}pt

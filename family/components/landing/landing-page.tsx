@@ -30,8 +30,8 @@ export function LandingPage() {
             感動・世界旅ゲーム
           </h1>
           <p className="text-xl text-gray-600 mb-4 max-w-2xl mx-auto">
-            家族で世界を旅しよう！<br />
-            クイズに答え、名所を巡り、ボイスメッセージで絆を深める
+            さあ感動の旅に出よう！<br />
+            世界の自然や文化の名所を巡り、家族や仲間と感動ポイントを競う
           </p>
           <p className="text-lg text-sky-600 mb-8 max-w-2xl mx-auto">
             🌍 50の空港 • 🏛️ 世界の観光名所＆グルメ • ❓ クイズマス • ✉️ メッセージマス
@@ -88,11 +88,11 @@ export function LandingPage() {
           <Card className="border-sky-200 bg-white/80">
             <CardHeader>
               <div className="text-4xl mb-2">✉️</div>
-              <CardTitle className="text-sky-800">家族とメッセージ</CardTitle>
+              <CardTitle className="text-sky-800">メッセージ</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-gray-600">
-                メッセージマスでは家族へのボイスメッセージを録音。「どんな〇〇？」の質問で心温まる会話が生まれます。
+                メッセージマスではあなたへのひと言しつもんメッセージが届くので答えてください。
               </p>
             </CardContent>
           </Card>
@@ -181,12 +181,6 @@ export function LandingPage() {
 
         {/* CTA */}
         <div className="text-center bg-gradient-to-r from-sky-100 to-blue-100 p-12 rounded-lg border border-sky-200">
-          <h2 className="text-3xl font-bold mb-4 text-sky-900">
-            家族で世界旅行を始めよう！
-          </h2>
-          <p className="text-gray-600 mb-8">
-            今すぐ世界旅行に出発しよう！
-          </p>
           <div className="flex justify-center">
             <Link href="/world-tour" className="w-full max-w-sm">
               <Button size="lg" className="w-full text-lg px-12 py-6 bg-sky-600 hover:bg-sky-700">

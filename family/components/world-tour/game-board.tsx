@@ -12,6 +12,8 @@ import { PlayerState, EmotionCategory, TravelProgress, RouteSpace, RouteSpaceTyp
 import { AIRPORTS, getAirportByCode, calculateDistance, distanceToSpaces } from "@/lib/data/airports";
 import { getSpotsByAirport } from "@/lib/data/tourist-spots";
 import { getRandomQuiz } from "@/lib/data/quiz-pool";
+import { getRandomQuestion, MessageQuestion } from "@/lib/data/message-questions";
+import { speakText, stopSpeaking } from "@/lib/speech";
 
 interface GameBoardProps {
   userId: string;
@@ -150,6 +152,8 @@ export function GameBoard({ userId }: GameBoardProps) {
   const [showQuizResult, setShowQuizResult] = useState(false);
   const [visitedAttractions, setVisitedAttractions] = useState<string[]>([]);
   const [visitedFoods, setVisitedFoods] = useState<string[]>([]);
+  const [currentMessageQuestion, setCurrentMessageQuestion] = useState<MessageQuestion | null>(null);
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
   // 目的地選択用のリスト
   const allDestinations = useMemo(() =>
@@ -233,7 +237,10 @@ export function GameBoard({ userId }: GameBoardProps) {
     if (!player.travelProgress) return;
 
     setGamePhase("rolling");
-    setMessage("サイコロを振っています...");
+    const hasPowerBonus = player.powerSpotBonus && player.powerSpotBonus.remainingTurns > 0;
+    setMessage(hasPowerBonus
+      ? `✨ パワースポット効果発動中！（残り${player.powerSpotBonus!.remainingTurns}回）サイコロを振っています...`
+      : "サイコロを振っています...");
 
     // サイコロアニメーション
     let rolls = 0;
@@ -242,19 +249,40 @@ export function GameBoard({ userId }: GameBoardProps) {
       rolls++;
       if (rolls >= 10) {
         clearInterval(interval);
-        const finalResult = Math.floor(Math.random() * 6) + 1;
+        const baseResult = Math.floor(Math.random() * 6) + 1;
+
+        // パワースポットボーナス適用
+        let finalResult = baseResult;
+        let bonusMessage = "";
+        if (hasPowerBonus) {
+          const multiplier = player.powerSpotBonus!.multiplier;
+          finalResult = baseResult * multiplier;
+          bonusMessage = ` (${baseResult} × ${multiplier}倍 = ${finalResult})`;
+
+          // ボーナス残り回数を減らす
+          setPlayer((prev) => ({
+            ...prev,
+            powerSpotBonus: prev.powerSpotBonus
+              ? {
+                  ...prev.powerSpotBonus,
+                  remainingTurns: prev.powerSpotBonus.remainingTurns - 1,
+                }
+              : undefined,
+          }));
+        }
+
         setDiceResult(finalResult);
         setGamePhase("moving");
 
         const remaining = player.travelProgress!.totalSpaces - player.travelProgress!.currentSpace;
         if (finalResult >= remaining) {
-          setMessage(`${finalResult}が出ました！目的地に到着します！`);
+          setMessage(`🎲 ${baseResult}が出ました${bonusMessage}！目的地に到着します！`);
         } else {
-          setMessage(`${finalResult}が出ました！${finalResult}マス進みます`);
+          setMessage(`🎲 ${baseResult}が出ました${bonusMessage}！${finalResult}マス進みます`);
         }
       }
     }, 100);
-  }, [player.travelProgress]);
+  }, [player.travelProgress, player.powerSpotBonus]);
 
   // 移動を確定
   const confirmMove = useCallback(() => {
@@ -333,9 +361,21 @@ export function GameBoard({ userId }: GameBoardProps) {
         setGamePhase("quiz");
         setMessage(`❓ クイズマスに止まりました！問題に答えよう`);
       } else if (landedSpace?.type === 'message') {
-        // メッセージマスに止まった
+        // メッセージマスに止まった - ひと言しつもんを取得して読み上げ
+        const question = getRandomQuestion();
+        setCurrentMessageQuestion(question);
         setGamePhase("message_event");
-        setMessage(`✉️ メッセージマスに止まりました！家族にボイスメッセージを送ろう`);
+        setMessage(`✉️ メッセージマスに止まりました！`);
+
+        // 少し遅延してから音声読み上げ（絵文字は自動除去される）
+        setTimeout(() => {
+          setIsSpeaking(true);
+          speakText(question.question, {
+            rate: 0.95,
+            onEnd: () => setIsSpeaking(false),
+            onError: () => setIsSpeaking(false),
+          });
+        }, 500);
       } else {
         setGamePhase("idle");
         setMessage(`${diceResult}マス進みました！残り${totalSpaces - newSpace}マス`);
@@ -434,7 +474,8 @@ export function GameBoard({ userId }: GameBoardProps) {
     index: number,
     name: string,
     points: number,
-    category: EmotionCategory
+    category: EmotionCategory,
+    isPowerSpot?: boolean
   ) => {
     // この空港で既に観光名所を訪問済みかチェック
     if (visitedAttractions.some(id => id.startsWith(`${airportCode}-attraction-`))) {
@@ -443,15 +484,37 @@ export function GameBoard({ userId }: GameBoardProps) {
     }
     const attractionId = `${airportCode}-attraction-${index}`;
     setVisitedAttractions((prev) => [...prev, attractionId]);
-    setPlayer((prev) => ({
-      ...prev,
-      emotionPoints: {
-        ...prev.emotionPoints,
-        total: prev.emotionPoints.total + points,
-        [category]: prev.emotionPoints[category] + points,
-      },
-    }));
-    setMessage(`🏛️ ${name}を訪問！ +${points}pt 獲得！`);
+
+    // パワースポットの場合、サイコロ倍率ボーナスを付与
+    if (isPowerSpot) {
+      const multiplier = 2 + Math.floor(Math.random() * 2); // 2〜3倍
+      setPlayer((prev) => ({
+        ...prev,
+        emotionPoints: {
+          ...prev.emotionPoints,
+          total: prev.emotionPoints.total + points,
+          [category]: prev.emotionPoints[category] + points,
+        },
+        powerSpotBonus: {
+          multiplier,
+          remainingTurns: 3,
+          spotName: name,
+        },
+      }));
+      setMessage(`✨ ${name}を訪問！ +${points}pt 獲得！パワースポットの力で次の3回サイコロが${multiplier}倍に！`);
+      // パワースポット効果の音声通知
+      speakText(`パワースポットの力を得ました。次の3回、サイコロの目が${multiplier}倍になります。`, { rate: 0.95 });
+    } else {
+      setPlayer((prev) => ({
+        ...prev,
+        emotionPoints: {
+          ...prev.emotionPoints,
+          total: prev.emotionPoints.total + points,
+          [category]: prev.emotionPoints[category] + points,
+        },
+      }));
+      setMessage(`🏛️ ${name}を訪問！ +${points}pt 獲得！`);
+    }
   }, [visitedAttractions]);
 
   // ご当地グルメを味わう（各空港で1つのみ）
@@ -532,6 +595,22 @@ export function GameBoard({ userId }: GameBoardProps) {
                   </p>
                   <p className="text-xs text-sky-600">
                     {player.travelProgress.currentSpace}/{player.travelProgress.totalSpaces}マス
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* パワースポットボーナス表示 */}
+            {player.powerSpotBonus && player.powerSpotBonus.remainingTurns > 0 && (
+              <div className="flex items-center gap-2 p-2 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg border border-yellow-300 animate-pulse">
+                <span className="text-2xl">✨</span>
+                <div>
+                  <p className="text-sm text-yellow-700 font-medium">パワースポット効果</p>
+                  <p className="font-bold text-amber-600">
+                    サイコロ{player.powerSpotBonus.multiplier}倍
+                  </p>
+                  <p className="text-xs text-yellow-600">
+                    残り{player.powerSpotBonus.remainingTurns}回
                   </p>
                 </div>
               </div>
@@ -683,7 +762,7 @@ export function GameBoard({ userId }: GameBoardProps) {
                           const isStart = i === 0;
 
                           let bgColor = "bg-sky-100 border-sky-300";
-                          let textClass = "text-xs";
+                          const textClass = "text-xs";
 
                           if (isCurrent) {
                             bgColor = "bg-yellow-300 border-yellow-500 animate-pulse";
@@ -887,36 +966,58 @@ export function GameBoard({ userId }: GameBoardProps) {
             )}
 
             {/* メッセージマス */}
-            {gamePhase === "message_event" && (
+            {gamePhase === "message_event" && currentMessageQuestion && (
               <div className="space-y-4">
                 <div className="p-4 bg-green-50 rounded-lg border-2 border-green-300">
                   <div className="flex items-center gap-2 mb-3">
                     <span className="text-3xl">✉️</span>
-                    <p className="font-bold text-green-800">メッセージマス</p>
+                    <p className="font-bold text-green-800">ひと言しつもん</p>
                     <Badge className="ml-auto bg-green-600">30pt</Badge>
                   </div>
-                  <p className="text-gray-700 mb-4">
-                    家族にボイスメッセージを送って、感動ポイントをゲットしよう！
-                  </p>
-                  <div className="p-3 bg-white rounded-lg border border-green-200 mb-4">
-                    <p className="text-sm text-gray-500 mb-1">お題の例:</p>
-                    <p className="font-medium text-green-800">
-                      「今日はどんな気分？」「最近うれしかったことは？」
+
+                  {/* 質問表示エリア */}
+                  <div className={`p-4 bg-white rounded-lg border-2 mb-4 transition-all ${
+                    isSpeaking ? "border-green-500 shadow-lg animate-pulse" : "border-green-200"
+                  }`}>
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="text-4xl">{currentMessageQuestion.icon}</span>
+                      {isSpeaking && (
+                        <span className="text-2xl animate-bounce">🔊</span>
+                      )}
+                    </div>
+                    <p className="text-xl font-bold text-green-800">
+                      {currentMessageQuestion.question}
                     </p>
                   </div>
+
+                  <p className="text-gray-600 text-sm mb-4">
+                    質問に声に出して答えてみよう！
+                  </p>
+
                   <div className="space-y-2">
                     <Button
                       className="w-full bg-green-600 hover:bg-green-700"
-                      disabled
+                      disabled={isSpeaking}
+                      onClick={() => {
+                        setIsSpeaking(true);
+                        speakText(currentMessageQuestion.question, {
+                          rate: 0.95,
+                          onEnd: () => setIsSpeaking(false),
+                          onError: () => setIsSpeaking(false),
+                        });
+                      }}
                     >
-                      🎤 ボイスメッセージを録音（準備中）
+                      {isSpeaking ? "読み上げ中..." : "🔊 もう一度読み上げる"}
                     </Button>
                     <Button
                       variant="outline"
                       className="w-full border-green-400 text-green-700 hover:bg-green-50"
-                      onClick={skipMessageEvent}
+                      onClick={() => {
+                        stopSpeaking();
+                        skipMessageEvent();
+                      }}
                     >
-                      スキップして進む（+30pt）
+                      答えたよ！次へ進む（+30pt）
                     </Button>
                   </div>
                 </div>

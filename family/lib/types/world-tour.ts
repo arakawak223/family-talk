@@ -31,6 +31,7 @@ export interface AirportAttraction {
   icon: string;           // 絵文字
   emotionPoints: number;  // 獲得感動ポイント
   emotionCategory: EmotionCategory;  // 感動カテゴリー
+  isPowerSpot?: boolean;  // パワースポット（神が宿る土地）かどうか
 }
 
 // ご当地グルメ
@@ -130,6 +131,12 @@ export interface PlayerState {
   // 長距離移動用
   destinationAirport?: string;     // 最終目的地（設定中の場合）
   travelProgress?: TravelProgress; // 移動進捗
+  // パワースポットボーナス
+  powerSpotBonus?: {
+    multiplier: number;            // サイコロ倍率（2〜3）
+    remainingTurns: number;        // 残りターン数
+    spotName: string;              // パワースポット名
+  };
 }
 
 // 空路上のマスタイプ

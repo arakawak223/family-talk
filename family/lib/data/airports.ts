@@ -18,7 +18,7 @@ export const AIRPORTS: Airport[] = [
     icon: '🗼',
     attractions: [
       { name: '東京スカイツリー', description: '高さ634mの世界一高い電波塔', icon: '🗼', emotionPoints: 80, emotionCategory: 'wonder' },
-      { name: '浅草寺', description: '東京最古の寺院、雷門が有名', icon: '⛩️', emotionPoints: 70, emotionCategory: 'reflection' },
+      { name: '浅草寺', description: '東京最古の寺院、雷門が有名', icon: '⛩️', emotionPoints: 70, emotionCategory: 'reflection', isPowerSpot: true },
     ],
     localFood: [
       { name: '寿司', description: '新鮮な魚介を使った江戸前寿司', icon: '🍣', emotionPoints: 50 },
@@ -35,7 +35,7 @@ export const AIRPORTS: Airport[] = [
     hub: true,
     icon: '🏯',
     attractions: [
-      { name: '富士山', description: '日本の象徴、標高3776mの霊峰', icon: '🗻', emotionPoints: 150, emotionCategory: 'beauty' },
+      { name: '富士山', description: '日本の象徴、標高3776mの霊峰', icon: '🗻', emotionPoints: 150, emotionCategory: 'beauty', isPowerSpot: true },
       { name: '皇居', description: '天皇陛下のお住まい、美しい庭園', icon: '🏯', emotionPoints: 60, emotionCategory: 'reflection' },
     ],
     localFood: [
@@ -71,7 +71,7 @@ export const AIRPORTS: Airport[] = [
     hub: true,
     icon: '🇰🇷',
     attractions: [
-      { name: '景福宮', description: '朝鮮王朝の王宮', icon: '🏛️', emotionPoints: 80, emotionCategory: 'reflection' },
+      { name: '景福宮', description: '朝鮮王朝の王宮', icon: '🏛️', emotionPoints: 80, emotionCategory: 'reflection', isPowerSpot: true },
       { name: '明洞', description: 'ショッピングと美食の街', icon: '🛍️', emotionPoints: 50, emotionCategory: 'fun' },
     ],
     localFood: [
@@ -89,7 +89,7 @@ export const AIRPORTS: Airport[] = [
     hub: true,
     icon: '🏛️',
     attractions: [
-      { name: '万里の長城', description: '人類史上最大の建造物', icon: '🏯', emotionPoints: 200, emotionCategory: 'wonder' },
+      { name: '万里の長城', description: '人類史上最大の建造物', icon: '🏯', emotionPoints: 200, emotionCategory: 'wonder', isPowerSpot: true },
       { name: '紫禁城', description: '明・清王朝の宮殿', icon: '🏛️', emotionPoints: 150, emotionCategory: 'reflection' },
     ],
     localFood: [
@@ -126,7 +126,7 @@ export const AIRPORTS: Airport[] = [
     icon: '🌆',
     attractions: [
       { name: 'ビクトリア・ピーク', description: '香港島の最高峰からの絶景', icon: '🏔️', emotionPoints: 90, emotionCategory: 'beauty' },
-      { name: '大仏（天壇大仏）', description: '世界最大級の屋外青銅製大仏', icon: '🧘', emotionPoints: 70, emotionCategory: 'reflection' },
+      { name: '大仏（天壇大仏）', description: '世界最大級の屋外青銅製大仏', icon: '🧘', emotionPoints: 70, emotionCategory: 'reflection', isPowerSpot: true },
     ],
     localFood: [
       { name: '飲茶', description: '点心を楽しむ香港式ブランチ', icon: '🥢', emotionPoints: 50 },
@@ -179,7 +179,7 @@ export const AIRPORTS: Airport[] = [
     hub: true,
     icon: '🛕',
     attractions: [
-      { name: 'ワット・プラケオ（エメラルド寺院）', description: 'タイで最も神聖な寺院', icon: '🛕', emotionPoints: 120, emotionCategory: 'reflection' },
+      { name: 'ワット・プラケオ（エメラルド寺院）', description: 'タイで最も神聖な寺院', icon: '🛕', emotionPoints: 120, emotionCategory: 'reflection', isPowerSpot: true },
       { name: 'ワット・アルン（暁の寺）', description: 'チャオプラヤー川沿いの美しい寺院', icon: '⛪', emotionPoints: 90, emotionCategory: 'beauty' },
     ],
     localFood: [
@@ -198,7 +198,7 @@ export const AIRPORTS: Airport[] = [
     icon: '🗼',
     attractions: [
       { name: 'ペトロナス・ツインタワー', description: 'かつて世界一高かったツインタワー', icon: '🏙️', emotionPoints: 90, emotionCategory: 'wonder' },
-      { name: 'バトゥ洞窟', description: 'ヒンドゥー教の聖地、巨大な黄金像', icon: '🕌', emotionPoints: 80, emotionCategory: 'reflection' },
+      { name: 'バトゥ洞窟', description: 'ヒンドゥー教の聖地、巨大な黄金像', icon: '🕌', emotionPoints: 80, emotionCategory: 'reflection', isPowerSpot: true },
     ],
     localFood: [
       { name: 'ナシレマ', description: 'ココナッツライスのマレーシア国民食', icon: '🍚', emotionPoints: 45 },
@@ -215,7 +215,7 @@ export const AIRPORTS: Airport[] = [
     hub: true,
     icon: '🕌',
     attractions: [
-      { name: 'タージマハル', description: '愛の象徴、白亜の霊廟（アグラ）', icon: '🕌', emotionPoints: 200, emotionCategory: 'beauty' },
+      { name: 'タージマハル', description: '愛の象徴、白亜の霊廟（アグラ）', icon: '🕌', emotionPoints: 200, emotionCategory: 'beauty', isPowerSpot: true },
       { name: 'レッド・フォート', description: 'ムガル帝国の象徴', icon: '🏰', emotionPoints: 100, emotionCategory: 'reflection' },
     ],
     localFood: [
@@ -251,8 +251,8 @@ export const AIRPORTS: Airport[] = [
     hub: true,
     icon: '🌴',
     attractions: [
-      { name: 'ボロブドゥール', description: '世界最大の仏教遺跡（ジョグジャカルタ）', icon: '🛕', emotionPoints: 180, emotionCategory: 'wonder' },
-      { name: 'バリ島', description: '神々の島、リゾート天国', icon: '🏝️', emotionPoints: 120, emotionCategory: 'beauty' },
+      { name: 'ボロブドゥール', description: '世界最大の仏教遺跡（ジョグジャカルタ）', icon: '🛕', emotionPoints: 180, emotionCategory: 'wonder', isPowerSpot: true },
+      { name: 'バリ島', description: '神々の島、リゾート天国', icon: '🏝️', emotionPoints: 120, emotionCategory: 'beauty', isPowerSpot: true },
     ],
     localFood: [
       { name: 'ナシゴレン', description: 'インドネシア風チャーハン', icon: '🍚', emotionPoints: 45 },
@@ -361,7 +361,7 @@ export const AIRPORTS: Airport[] = [
     hub: true,
     icon: '🏛️',
     attractions: [
-      { name: 'コロッセオ', description: '古代ローマの円形闘技場', icon: '🏛️', emotionPoints: 160, emotionCategory: 'reflection' },
+      { name: 'コロッセオ', description: '古代ローマの円形闘技場', icon: '🏛️', emotionPoints: 160, emotionCategory: 'reflection', isPowerSpot: true },
       { name: 'トレビの泉', description: 'コインを投げ入れる噴水', icon: '⛲', emotionPoints: 80, emotionCategory: 'joy' },
     ],
     localFood: [
@@ -397,7 +397,7 @@ export const AIRPORTS: Airport[] = [
     hub: false,
     icon: '⛪',
     attractions: [
-      { name: 'サグラダ・ファミリア', description: 'ガウディの未完の傑作教会', icon: '⛪', emotionPoints: 180, emotionCategory: 'wonder' },
+      { name: 'サグラダ・ファミリア', description: 'ガウディの未完の傑作教会', icon: '⛪', emotionPoints: 180, emotionCategory: 'wonder', isPowerSpot: true },
       { name: 'グエル公園', description: 'ガウディのモザイク庭園', icon: '🦎', emotionPoints: 100, emotionCategory: 'beauty' },
     ],
     localFood: [
@@ -469,7 +469,7 @@ export const AIRPORTS: Airport[] = [
     hub: false,
     icon: '🏛️',
     attractions: [
-      { name: 'パルテノン神殿', description: '古代ギリシャの象徴', icon: '🏛️', emotionPoints: 170, emotionCategory: 'reflection' },
+      { name: 'パルテノン神殿', description: '古代ギリシャの象徴', icon: '🏛️', emotionPoints: 170, emotionCategory: 'reflection', isPowerSpot: true },
       { name: 'サントリーニ島', description: '白と青の絶景の島', icon: '🏝️', emotionPoints: 200, emotionCategory: 'beauty' },
     ],
     localFood: [
@@ -523,7 +523,7 @@ export const AIRPORTS: Airport[] = [
     hub: false,
     icon: '🎅',
     attractions: [
-      { name: 'オーロラ観測', description: '北極圏の神秘の光', icon: '🌌', emotionPoints: 250, emotionCategory: 'wonder' },
+      { name: 'オーロラ観測', description: '北極圏の神秘の光', icon: '🌌', emotionPoints: 250, emotionCategory: 'wonder', isPowerSpot: true },
       { name: 'サンタクロース村', description: 'サンタに会える村', icon: '🎅', emotionPoints: 100, emotionCategory: 'joy' },
     ],
     localFood: [
@@ -743,7 +743,7 @@ export const AIRPORTS: Airport[] = [
     hub: false,
     icon: '🎭',
     attractions: [
-      { name: 'コルコバードのキリスト像', description: '新・世界七不思議', icon: '✝️', emotionPoints: 160, emotionCategory: 'reflection' },
+      { name: 'コルコバードのキリスト像', description: '新・世界七不思議', icon: '✝️', emotionPoints: 160, emotionCategory: 'reflection', isPowerSpot: true },
       { name: 'コパカバーナビーチ', description: '世界的に有名なビーチ', icon: '🏖️', emotionPoints: 100, emotionCategory: 'fun' },
     ],
     localFood: [
@@ -779,7 +779,7 @@ export const AIRPORTS: Airport[] = [
     hub: false,
     icon: '🏔️',
     attractions: [
-      { name: 'マチュピチュ', description: '天空の都市、インカの遺跡', icon: '🏔️', emotionPoints: 250, emotionCategory: 'wonder' },
+      { name: 'マチュピチュ', description: '天空の都市、インカの遺跡', icon: '🏔️', emotionPoints: 250, emotionCategory: 'wonder', isPowerSpot: true },
       { name: 'ナスカの地上絵', description: '謎の巨大絵画', icon: '🛩️', emotionPoints: 180, emotionCategory: 'wonder' },
     ],
     localFood: [
@@ -797,7 +797,7 @@ export const AIRPORTS: Airport[] = [
     hub: false,
     icon: '🍷',
     attractions: [
-      { name: 'イースター島', description: 'モアイ像の謎の島', icon: '🗿', emotionPoints: 200, emotionCategory: 'wonder' },
+      { name: 'イースター島', description: 'モアイ像の謎の島', icon: '🗿', emotionPoints: 200, emotionCategory: 'wonder', isPowerSpot: true },
       { name: 'アタカマ砂漠', description: '世界で最も乾燥した場所', icon: '🏜️', emotionPoints: 150, emotionCategory: 'beauty' },
     ],
     localFood: [
@@ -909,7 +909,7 @@ export const AIRPORTS: Airport[] = [
     hub: true,
     icon: '🕌',
     attractions: [
-      { name: 'アヤソフィア', description: 'ビザンツ建築の傑作', icon: '🕌', emotionPoints: 150, emotionCategory: 'reflection' },
+      { name: 'アヤソフィア', description: 'ビザンツ建築の傑作', icon: '🕌', emotionPoints: 150, emotionCategory: 'reflection', isPowerSpot: true },
       { name: 'グランドバザール', description: '世界最大級の屋根付き市場', icon: '🛍️', emotionPoints: 80, emotionCategory: 'fun' },
     ],
     localFood: [
@@ -947,7 +947,7 @@ export const AIRPORTS: Airport[] = [
     hub: true,
     icon: '🏛️',
     attractions: [
-      { name: 'ギザのピラミッド', description: '古代世界七不思議で唯一現存', icon: '🏛️', emotionPoints: 230, emotionCategory: 'wonder' },
+      { name: 'ギザのピラミッド', description: '古代世界七不思議で唯一現存', icon: '🏛️', emotionPoints: 230, emotionCategory: 'wonder', isPowerSpot: true },
       { name: 'スフィンクス', description: 'ライオンの体と人間の頭', icon: '🦁', emotionPoints: 150, emotionCategory: 'wonder' },
     ],
     localFood: [
