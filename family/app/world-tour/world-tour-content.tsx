@@ -28,7 +28,7 @@ export function WorldTourContent({
             </Link>
             <h1 className="text-xl font-bold flex items-center gap-2">
               <span>✈️</span>
-              <span>世界感動旅行</span>
+              <span>感動・世界旅ゲーム</span>
             </h1>
           </div>
           <div className="flex items-center gap-2">
@@ -47,8 +47,8 @@ export function WorldTourContent({
       {/* フッター */}
       <footer className="bg-white/50 border-t py-4 mt-8">
         <div className="container mx-auto px-4 text-center text-sm text-gray-500">
-          <p>🌍 世界中の空港を巡り、感動を集めよう！</p>
-          <p className="text-xs mt-1">Phase 1: 50空港 / 20+観光スポット</p>
+          <p>🌍 感動・世界旅ゲーム - クイズに答え、名所を巡り、家族とメッセージを交換しよう！</p>
+          <p className="text-xs mt-1">🏛️ 50空港 • ❓ クイズマス • ✉️ メッセージマス</p>
         </div>
       </footer>
     </div>

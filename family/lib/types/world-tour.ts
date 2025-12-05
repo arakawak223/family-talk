@@ -19,6 +19,26 @@ export interface Airport {
   };
   hub: boolean;           // 主要ハブ空港かどうか
   icon: string;           // 絵文字アイコン
+  // 観光名所とグルメ情報
+  attractions?: AirportAttraction[];  // 観光名所
+  localFood?: LocalFood[];            // ご当地グルメ
+}
+
+// 空港の観光名所
+export interface AirportAttraction {
+  name: string;           // 名所名
+  description: string;    // 説明
+  icon: string;           // 絵文字
+  emotionPoints: number;  // 獲得感動ポイント
+  emotionCategory: EmotionCategory;  // 感動カテゴリー
+}
+
+// ご当地グルメ
+export interface LocalFood {
+  name: string;           // 料理名
+  description: string;    // 説明
+  icon: string;           // 絵文字
+  emotionPoints: number;  // 獲得感動ポイント
 }
 
 // 世界の地域
@@ -112,6 +132,20 @@ export interface PlayerState {
   travelProgress?: TravelProgress; // 移動進捗
 }
 
+// 空路上のマスタイプ
+export type RouteSpaceType = 'normal' | 'quiz' | 'message';
+
+// 空路上のマス情報
+export interface RouteSpace {
+  index: number;                    // マス番号（0から始まる）
+  type: RouteSpaceType;             // マスの種類
+  icon: string;                     // 表示アイコン
+  position: {
+    lat: number;
+    lng: number;
+  };
+}
+
 // 長距離移動の進捗状態
 export interface TravelProgress {
   startAirport: string;            // 出発空港コード
@@ -124,6 +158,8 @@ export interface TravelProgress {
     lat: number;
     lng: number;
   };
+  // 空路上のマス情報
+  routeSpaces?: RouteSpace[];
 }
 
 // インベントリアイテム

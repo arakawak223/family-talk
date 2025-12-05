@@ -8,9 +8,10 @@ import { WorldMap } from "./world-map";
 import { AirportPanel } from "./airport-panel";
 import { EmotionPointsDisplay } from "./emotion-points-display";
 import { SpotVisitModal } from "./spot-visit-modal";
-import { PlayerState, EmotionCategory, TravelProgress } from "@/lib/types/world-tour";
+import { PlayerState, EmotionCategory, TravelProgress, RouteSpace, RouteSpaceType } from "@/lib/types/world-tour";
 import { AIRPORTS, getAirportByCode, calculateDistance, distanceToSpaces } from "@/lib/data/airports";
 import { getSpotsByAirport } from "@/lib/data/tourist-spots";
+import { getRandomQuiz } from "@/lib/data/quiz-pool";
 
 interface GameBoardProps {
   userId: string;
@@ -68,6 +69,55 @@ function calculateRoutePositions(
   return positions;
 }
 
+// 空路上のマス情報を生成（クイズマス、メッセージマス含む）
+function generateRouteSpaces(
+  startAirport: string,
+  endAirport: string,
+  totalSpaces: number
+): RouteSpace[] {
+  const start = getAirportByCode(startAirport);
+  const end = getAirportByCode(endAirport);
+  if (!start || !end) return [];
+
+  const spaces: RouteSpace[] = [];
+
+  // 空港以外のマスにランダムでクイズやメッセージマスを配置
+  // 2〜3マスごとに1つ特殊マスを配置
+  const specialSpaceInterval = 2 + Math.floor(Math.random() * 2); // 2〜3
+
+  for (let i = 0; i <= totalSpaces; i++) {
+    const progress = i / totalSpaces;
+    const position = interpolatePosition(start.coordinates, end.coordinates, progress);
+
+    let type: RouteSpaceType = 'normal';
+    let icon = '✈️';
+
+    // 最初と最後のマス（空港）以外にイベントマスを配置
+    if (i > 0 && i < totalSpaces) {
+      if (i % specialSpaceInterval === 0) {
+        // 交互にクイズマスとメッセージマスを配置
+        const isQuiz = Math.floor(i / specialSpaceInterval) % 2 === 1;
+        if (isQuiz) {
+          type = 'quiz';
+          icon = '❓';
+        } else {
+          type = 'message';
+          icon = '✉️';
+        }
+      }
+    }
+
+    spaces.push({
+      index: i,
+      type,
+      icon,
+      position,
+    });
+  }
+
+  return spaces;
+}
+
 // 今回のサイコロで到達可能な空港を計算（目的地設定モード用）
 function getAllDestinationsWithDistance(currentAirport: string): { code: string; distance: number; spaces: number }[] {
   const current = getAirportByCode(currentAirport);
@@ -88,13 +138,18 @@ export function GameBoard({ userId }: GameBoardProps) {
     createInitialPlayer(userId, "プレイヤー")
   );
   const [gamePhase, setGamePhase] = useState<
-    "idle" | "setting_destination" | "rolling" | "moving" | "arrived" | "visiting"
+    "idle" | "setting_destination" | "rolling" | "moving" | "arrived" | "visiting" | "quiz" | "message_event"
   >("idle");
   const [diceResult, setDiceResult] = useState<number | null>(null);
   const [selectedAirport, setSelectedAirport] = useState<string | null>(null);
   const [showSpotModal, setShowSpotModal] = useState(false);
   const [currentSpot, setCurrentSpot] = useState<string | null>(null);
   const [message, setMessage] = useState<string>("");
+  const [currentQuiz, setCurrentQuiz] = useState<ReturnType<typeof getRandomQuiz> | null>(null);
+  const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
+  const [showQuizResult, setShowQuizResult] = useState(false);
+  const [visitedAttractions, setVisitedAttractions] = useState<string[]>([]);
+  const [visitedFoods, setVisitedFoods] = useState<string[]>([]);
 
   // 目的地選択用のリスト
   const allDestinations = useMemo(() =>
@@ -127,6 +182,9 @@ export function GameBoard({ userId }: GameBoardProps) {
     const distance = calculateDistance(current, destination);
     const totalSpaces = distanceToSpaces(distance);
 
+    // ルートスペース（クイズマス、メッセージマス含む）を生成
+    const routeSpaces = generateRouteSpaces(player.currentAirport, destinationCode, totalSpaces);
+
     const travelProgress: TravelProgress = {
       startAirport: player.currentAirport,
       finalDestination: destinationCode,
@@ -134,7 +192,19 @@ export function GameBoard({ userId }: GameBoardProps) {
       totalSpaces,
       currentSpace: 0,
       currentPosition: current.coordinates,
+      routeSpaces,
     };
+
+    // ルートスペースの中で特殊マスがあるか確認
+    const quizCount = routeSpaces.filter(s => s.type === 'quiz').length;
+    const messageCount = routeSpaces.filter(s => s.type === 'message').length;
+    let specialInfo = '';
+    if (quizCount > 0 || messageCount > 0) {
+      const parts = [];
+      if (quizCount > 0) parts.push(`❓クイズ×${quizCount}`);
+      if (messageCount > 0) parts.push(`✉️メッセージ×${messageCount}`);
+      specialInfo = ` (${parts.join(', ')})`;
+    }
 
     setPlayer((prev) => ({
       ...prev,
@@ -144,7 +214,7 @@ export function GameBoard({ userId }: GameBoardProps) {
 
     setSelectedAirport(null);
     setGamePhase("idle");
-    setMessage(`目的地: ${destination.city} (${totalSpaces}マス) 設定完了！サイコロを振って進みましょう`);
+    setMessage(`目的地: ${destination.city} (${totalSpaces}マス)${specialInfo} 設定完了！サイコロを振って進みましょう`);
   }, [player.currentAirport]);
 
   // 目的地キャンセル
@@ -250,8 +320,26 @@ export function GameBoard({ userId }: GameBoardProps) {
         turnsPlayed: prev.turnsPlayed + 1,
       }));
 
-      setGamePhase("idle");
-      setMessage(`${diceResult}マス進みました！残り${totalSpaces - newSpace}マス`);
+      // 止まったマスのタイプをチェック
+      const routeSpaces = player.travelProgress.routeSpaces;
+      const landedSpace = routeSpaces?.find(s => s.index === newSpace);
+
+      if (landedSpace?.type === 'quiz') {
+        // クイズマスに止まった
+        const quiz = getRandomQuiz();
+        setCurrentQuiz(quiz);
+        setSelectedAnswer(null);
+        setShowQuizResult(false);
+        setGamePhase("quiz");
+        setMessage(`❓ クイズマスに止まりました！問題に答えよう`);
+      } else if (landedSpace?.type === 'message') {
+        // メッセージマスに止まった
+        setGamePhase("message_event");
+        setMessage(`✉️ メッセージマスに止まりました！家族にボイスメッセージを送ろう`);
+      } else {
+        setGamePhase("idle");
+        setMessage(`${diceResult}マス進みました！残り${totalSpaces - newSpace}マス`);
+      }
     }
 
     setDiceResult(null);
@@ -289,6 +377,108 @@ export function GameBoard({ userId }: GameBoardProps) {
     setMessage("次のターンへ");
   }, []);
 
+  // クイズの回答を選択
+  const handleQuizAnswer = useCallback((answerIndex: number) => {
+    setSelectedAnswer(answerIndex);
+  }, []);
+
+  // クイズの回答を確定
+  const confirmQuizAnswer = useCallback(() => {
+    if (currentQuiz === null || selectedAnswer === null) return;
+
+    const isCorrect = selectedAnswer === currentQuiz.correctAnswer;
+    setShowQuizResult(true);
+
+    if (isCorrect) {
+      // 正解
+      setPlayer((prev) => ({
+        ...prev,
+        emotionPoints: {
+          ...prev.emotionPoints,
+          total: prev.emotionPoints.total + currentQuiz.points,
+          wonder: prev.emotionPoints.wonder + currentQuiz.points,
+        },
+      }));
+      setMessage(`✅ 正解！ +${currentQuiz.points}pt 獲得！ ${currentQuiz.explanation}`);
+    } else {
+      // 不正解
+      setMessage(`❌ 残念...正解は「${currentQuiz.options[currentQuiz.correctAnswer]}」でした。${currentQuiz.explanation}`);
+    }
+  }, [currentQuiz, selectedAnswer]);
+
+  // クイズを終了
+  const closeQuiz = useCallback(() => {
+    setCurrentQuiz(null);
+    setSelectedAnswer(null);
+    setShowQuizResult(false);
+    setGamePhase("idle");
+  }, []);
+
+  // メッセージイベントをスキップ
+  const skipMessageEvent = useCallback(() => {
+    setPlayer((prev) => ({
+      ...prev,
+      emotionPoints: {
+        ...prev.emotionPoints,
+        total: prev.emotionPoints.total + 30,
+        joy: prev.emotionPoints.joy + 30,
+      },
+    }));
+    setMessage("✉️ メッセージマスのボーナス +30pt！（ボイスメッセージ機能は今後追加予定）");
+    setGamePhase("idle");
+  }, []);
+
+  // 観光名所を訪問（各空港で1つのみ）
+  const handleVisitAttraction = useCallback((
+    airportCode: string,
+    index: number,
+    name: string,
+    points: number,
+    category: EmotionCategory
+  ) => {
+    // この空港で既に観光名所を訪問済みかチェック
+    if (visitedAttractions.some(id => id.startsWith(`${airportCode}-attraction-`))) {
+      setMessage("この空港では既に観光名所を訪問済みです");
+      return;
+    }
+    const attractionId = `${airportCode}-attraction-${index}`;
+    setVisitedAttractions((prev) => [...prev, attractionId]);
+    setPlayer((prev) => ({
+      ...prev,
+      emotionPoints: {
+        ...prev.emotionPoints,
+        total: prev.emotionPoints.total + points,
+        [category]: prev.emotionPoints[category] + points,
+      },
+    }));
+    setMessage(`🏛️ ${name}を訪問！ +${points}pt 獲得！`);
+  }, [visitedAttractions]);
+
+  // ご当地グルメを味わう（各空港で1つのみ）
+  const handleVisitFood = useCallback((
+    airportCode: string,
+    index: number,
+    name: string,
+    points: number
+  ) => {
+    // この空港で既にグルメを体験済みかチェック
+    if (visitedFoods.some(id => id.startsWith(`${airportCode}-food-`))) {
+      setMessage("この空港では既にグルメを体験済みです");
+      return;
+    }
+    const foodId = `${airportCode}-food-${index}`;
+    setVisitedFoods((prev) => [...prev, foodId]);
+    setPlayer((prev) => ({
+      ...prev,
+      emotionPoints: {
+        ...prev.emotionPoints,
+        total: prev.emotionPoints.total + points,
+        joy: prev.emotionPoints.joy + points,
+      },
+    }));
+    setMessage(`🍽️ ${name}を味わった！ +${points}pt 獲得！`);
+  }, [visitedFoods]);
+
   const currentAirport = getAirportByCode(player.currentAirport);
   const destinationAirportData = player.destinationAirport ? getAirportByCode(player.destinationAirport) : null;
   const nearbySpots = getSpotsByAirport(player.currentAirport);
@@ -305,7 +495,7 @@ export function GameBoard({ userId }: GameBoardProps) {
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center justify-between">
-            <span>✈️ 世界感動旅行</span>
+            <span>✈️ 感動・世界旅ゲーム</span>
             <Badge variant="outline" className="text-lg">
               ターン {player.turnsPlayed + 1}
             </Badge>
@@ -484,32 +674,56 @@ export function GameBoard({ userId }: GameBoardProps) {
                           {player.travelProgress.currentSpace}/{player.travelProgress.totalSpaces}マス
                         </span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 bg-sky-200 rounded-full h-4 relative">
-                          <div
-                            className="bg-sky-600 h-4 rounded-full transition-all"
-                            style={{
-                              width: `${(player.travelProgress.currentSpace / player.travelProgress.totalSpaces) * 100}%`
-                            }}
-                          />
-                          {/* マス表示 */}
-                          <div className="absolute inset-0 flex items-center justify-around px-1">
-                            {Array.from({ length: player.travelProgress.totalSpaces + 1 }).map((_, i) => (
-                              <div
-                                key={i}
-                                className={`w-2 h-2 rounded-full ${
-                                  i <= player.travelProgress!.currentSpace
-                                    ? "bg-white"
-                                    : "bg-sky-400"
-                                }`}
-                              />
-                            ))}
-                          </div>
-                        </div>
+                      {/* ルートマス表示（クイズマス・メッセージマス含む） */}
+                      <div className="flex items-center gap-1 overflow-x-auto pb-1">
+                        {player.travelProgress.routeSpaces?.map((space, i) => {
+                          const isPassed = i < player.travelProgress!.currentSpace;
+                          const isCurrent = i === player.travelProgress!.currentSpace;
+                          const isDestination = i === player.travelProgress!.totalSpaces;
+                          const isStart = i === 0;
+
+                          let bgColor = "bg-sky-100 border-sky-300";
+                          let textClass = "text-xs";
+
+                          if (isCurrent) {
+                            bgColor = "bg-yellow-300 border-yellow-500 animate-pulse";
+                          } else if (isPassed) {
+                            bgColor = "bg-sky-400 border-sky-500";
+                          } else if (space.type === 'quiz') {
+                            bgColor = "bg-purple-100 border-purple-400";
+                          } else if (space.type === 'message') {
+                            bgColor = "bg-green-100 border-green-400";
+                          }
+
+                          let icon = space.icon;
+                          if (isStart) {
+                            icon = getAirportByCode(player.travelProgress!.startAirport)?.icon || "🛫";
+                          } else if (isDestination) {
+                            icon = destinationAirportData?.icon || "🛬";
+                          }
+
+                          return (
+                            <div
+                              key={i}
+                              className={`flex-shrink-0 w-8 h-8 rounded-full border-2 ${bgColor} flex items-center justify-center ${textClass}`}
+                              title={
+                                isStart ? "出発" :
+                                isDestination ? "目的地" :
+                                space.type === 'quiz' ? "クイズマス" :
+                                space.type === 'message' ? "メッセージマス" :
+                                `${i}マス目`
+                              }
+                            >
+                              {icon}
+                            </div>
+                          );
+                        })}
                       </div>
-                      <p className="text-xs text-sky-600 mt-2 text-center">
-                        残り {player.travelProgress.totalSpaces - player.travelProgress.currentSpace}マス
-                      </p>
+                      <div className="flex justify-between text-xs text-sky-600 mt-2">
+                        <span>出発</span>
+                        <span>残り {player.travelProgress.totalSpaces - player.travelProgress.currentSpace}マス</span>
+                        <span>到着</span>
+                      </div>
                     </div>
                     <Button
                       onClick={rollDice}
@@ -596,6 +810,118 @@ export function GameBoard({ userId }: GameBoardProps) {
                 </Button>
               </div>
             )}
+
+            {/* クイズマス */}
+            {gamePhase === "quiz" && currentQuiz && (
+              <div className="space-y-4">
+                <div className="p-4 bg-purple-50 rounded-lg border-2 border-purple-300">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-3xl">❓</span>
+                    <p className="font-bold text-purple-800">クイズに挑戦！</p>
+                    <Badge className="ml-auto bg-purple-600">{currentQuiz.points}pt</Badge>
+                  </div>
+                  <p className="text-lg font-semibold text-gray-800 mb-4">{currentQuiz.question}</p>
+
+                  {!showQuizResult ? (
+                    <>
+                      <div className="space-y-2">
+                        {currentQuiz.options.map((option, index) => (
+                          <button
+                            key={index}
+                            onClick={() => handleQuizAnswer(index)}
+                            className={`w-full p-3 rounded-lg text-left transition-colors ${
+                              selectedAnswer === index
+                                ? "bg-purple-200 border-2 border-purple-500"
+                                : "bg-white border-2 border-gray-200 hover:border-purple-300"
+                            }`}
+                          >
+                            <span className="font-medium">{String.fromCharCode(65 + index)}.</span>{" "}
+                            {option}
+                          </button>
+                        ))}
+                      </div>
+                      <Button
+                        onClick={confirmQuizAnswer}
+                        disabled={selectedAnswer === null}
+                        className="w-full mt-4 bg-purple-600 hover:bg-purple-700"
+                      >
+                        回答を確定
+                      </Button>
+                    </>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className={`p-4 rounded-lg ${
+                        selectedAnswer === currentQuiz.correctAnswer
+                          ? "bg-green-100 border-2 border-green-400"
+                          : "bg-red-100 border-2 border-red-400"
+                      }`}>
+                        {selectedAnswer === currentQuiz.correctAnswer ? (
+                          <div className="flex items-center gap-2 text-green-700">
+                            <span className="text-2xl">🎉</span>
+                            <p className="font-bold">正解！ +{currentQuiz.points}pt</p>
+                          </div>
+                        ) : (
+                          <div className="text-red-700">
+                            <p className="font-bold flex items-center gap-2">
+                              <span className="text-2xl">😢</span>
+                              残念...不正解
+                            </p>
+                            <p className="text-sm mt-1">
+                              正解: {currentQuiz.options[currentQuiz.correctAnswer]}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-3 bg-blue-50 rounded-lg">
+                        <p className="text-sm text-blue-800">
+                          <span className="font-bold">解説:</span> {currentQuiz.explanation}
+                        </p>
+                      </div>
+                      <Button onClick={closeQuiz} className="w-full">
+                        次へ進む
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* メッセージマス */}
+            {gamePhase === "message_event" && (
+              <div className="space-y-4">
+                <div className="p-4 bg-green-50 rounded-lg border-2 border-green-300">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-3xl">✉️</span>
+                    <p className="font-bold text-green-800">メッセージマス</p>
+                    <Badge className="ml-auto bg-green-600">30pt</Badge>
+                  </div>
+                  <p className="text-gray-700 mb-4">
+                    家族にボイスメッセージを送って、感動ポイントをゲットしよう！
+                  </p>
+                  <div className="p-3 bg-white rounded-lg border border-green-200 mb-4">
+                    <p className="text-sm text-gray-500 mb-1">お題の例:</p>
+                    <p className="font-medium text-green-800">
+                      「今日はどんな気分？」「最近うれしかったことは？」
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Button
+                      className="w-full bg-green-600 hover:bg-green-700"
+                      disabled
+                    >
+                      🎤 ボイスメッセージを録音（準備中）
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="w-full border-green-400 text-green-700 hover:bg-green-50"
+                      onClick={skipMessageEvent}
+                    >
+                      スキップして進む（+30pt）
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -610,6 +936,11 @@ export function GameBoard({ userId }: GameBoardProps) {
               ? getSpotsByAirport(player.destinationAirport)
               : nearbySpots
           }
+          visitedAttractions={visitedAttractions}
+          visitedFoods={visitedFoods}
+          onVisitAttraction={handleVisitAttraction}
+          onVisitFood={handleVisitFood}
+          canInteract={!selectedAirport && !player.destinationAirport && !isInFlight}
         />
       </div>
 

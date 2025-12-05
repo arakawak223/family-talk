@@ -3,34 +3,24 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { UserWithProfile } from "@/lib/auth";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { VoiceRecorder } from "@/components/voice/voice-recorder";
-import { QuestionSelector } from "@/components/questions/question-selector";
 import { FamilyInfo } from "@/components/dashboard/family-info";
 import { VoiceMessagesList } from "@/components/voice/voice-messages-list";
 import { MessageCalendar } from "@/components/dashboard/message-calendar";
-import { RecipientSelector } from "@/components/voice/recipient-selector";
-import { SugorokuBoard } from "@/components/sugoroku/sugoroku-board";
 
 interface DashboardContentProps {
   user: UserWithProfile;
 }
 
 export function DashboardContent({ user }: DashboardContentProps) {
-  const [showRecorder, setShowRecorder] = useState(false);
-  const [selectedQuestion, setSelectedQuestion] = useState<string>("");
   const [selectedFamily, setSelectedFamily] = useState(user.families[0]);
-  const [refreshMessages, setRefreshMessages] = useState(0);
-  const [refreshSugoroku, setRefreshSugoroku] = useState(0);
-  const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
-  const [initLoading, setInitLoading] = useState(false);
+  const [refreshMessages] = useState(0);
   const router = useRouter();
 
-  // 家族グループが変更されたら受信者リストをリセット
+  // 家族グループが変更された時のハンドラー
   const handleFamilyChange = (family: typeof selectedFamily) => {
     setSelectedFamily(family);
-    setSelectedRecipients([]); // 受信者リストをクリア
   };
 
   const handleManageFamily = () => {
@@ -53,30 +43,6 @@ export function DashboardContent({ user }: DashboardContentProps) {
       console.error("Logout error:", error);
       // エラーがあってもログインページにリダイレクト
       window.location.href = "/auth/login";
-    }
-  };
-
-  const handleInitSugoroku = async () => {
-    if (!confirm('双六ゲームのギフトとマスデータを初期化しますか？')) return;
-
-    setInitLoading(true);
-    try {
-      const response = await fetch('/api/admin/init-sugoroku', {
-        method: 'POST',
-      });
-      const data = await response.json();
-
-      if (response.ok) {
-        alert(`初期化成功！\nギフト: ${data.giftsCount}個\nマス: ${data.squaresCount}個`);
-        setRefreshSugoroku(prev => prev + 1);
-      } else {
-        alert(`エラー: ${data.error}`);
-      }
-    } catch (error) {
-      console.error('Init error:', error);
-      alert('初期化に失敗しました');
-    } finally {
-      setInitLoading(false);
     }
   };
 
@@ -129,79 +95,25 @@ export function DashboardContent({ user }: DashboardContentProps) {
         />
       </div>
 
-      {/* ボイスメッセージ作成 */}
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            🎤 ボイスメッセージを送る
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {!showRecorder ? (
-            <div className="space-y-4">
-              {/* 質問選択 */}
-              <QuestionSelector
-                onQuestionSelect={setSelectedQuestion}
-                selectedQuestion={selectedQuestion}
-              />
-
-              {/* 宛先選択 */}
-              <RecipientSelector
-                familyId={selectedFamily.id}
-                currentUserId={user.profile?.id || ""}
-                selectedRecipients={selectedRecipients}
-                onRecipientsChange={setSelectedRecipients}
-              />
-
-              {/* 録音開始ボタン - 中央配置で統一 */}
-              <div className="flex justify-center">
-                <Button
-                  onClick={() => setShowRecorder(true)}
-                  className="w-full max-w-sm"
-                  size="lg"
-                  disabled={selectedRecipients.length === 0}
-                >
-                  🎤 録音を開始
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <VoiceRecorder
-              familyId={selectedFamily.id}
-              question={selectedQuestion}
-              recipientIds={selectedRecipients}
-              onComplete={() => {
-                setShowRecorder(false);
-                setSelectedQuestion("");
-                setSelectedRecipients([]);
-                setRefreshMessages(prev => prev + 1); // メッセージ一覧を更新
-                setRefreshSugoroku(prev => prev + 1); // 双六ボードを更新
-              }}
-              onCancel={() => setShowRecorder(false)}
-            />
-          )}
-        </CardContent>
-      </Card>
-
       {/* ゲームセクション */}
       <div className="mb-8 space-y-4">
         <h2 className="text-xl font-bold flex items-center gap-2">
           🎮 ゲーム
         </h2>
 
-        {/* 世界感動旅行 - 新ゲーム */}
+        {/* 感動・世界旅ゲーム */}
         <Card className="border-2 border-sky-200 bg-gradient-to-r from-sky-50 to-blue-50">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="text-5xl">✈️</div>
                 <div>
-                  <h3 className="text-lg font-bold text-sky-800">世界感動旅行</h3>
+                  <h3 className="text-lg font-bold text-sky-800">感動・世界旅ゲーム</h3>
                   <p className="text-sm text-gray-600">
-                    世界中の空港を巡り、感動ポイントを集めよう！
+                    世界中の空港を巡り、クイズに答え、家族とメッセージを交換しよう！
                   </p>
                   <p className="text-xs text-sky-600 mt-1">
-                    🌍 50空港 • 🏛️ 20+観光スポット • 💖 5種類の感動
+                    🌍 50空港 • 🏛️ 観光名所＆グルメ • ❓ クイズマス • ✉️ メッセージマス
                   </p>
                 </div>
               </div>
@@ -213,36 +125,6 @@ export function DashboardContent({ user }: DashboardContentProps) {
                 プレイする →
               </Button>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* 従来の双六ボード */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base">
-              🎲 世界一周すごろく（旧バージョン）
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {/* 開発用: 初期化ボタン */}
-            <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-xs text-yellow-800 mb-2">
-                開発用: 双六データ初期化ボタン
-              </p>
-              <Button
-                onClick={handleInitSugoroku}
-                disabled={initLoading}
-                variant="outline"
-                size="sm"
-              >
-                {initLoading ? '初期化中...' : 'ギフト＆マスデータを初期化'}
-              </Button>
-            </div>
-            <SugorokuBoard
-              userId={user.profile?.id || ""}
-              familyId={selectedFamily.id}
-              key={`${selectedFamily.id}-${refreshSugoroku}`}
-            />
           </CardContent>
         </Card>
       </div>

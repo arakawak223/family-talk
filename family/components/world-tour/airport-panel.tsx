@@ -3,12 +3,17 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getAirportByCode } from "@/lib/data/airports";
-import { TouristSpot } from "@/lib/types/world-tour";
+import { TouristSpot, EmotionCategory } from "@/lib/types/world-tour";
 
 interface AirportPanelProps {
   airport: string;
   isCurrentLocation?: boolean;
   nearbySpots?: TouristSpot[];
+  visitedAttractions?: string[];  // 訪問済み観光名所のID (airportCode-index形式)
+  visitedFoods?: string[];        // 訪問済みグルメのID (airportCode-index形式)
+  onVisitAttraction?: (airportCode: string, index: number, name: string, points: number, category: EmotionCategory) => void;
+  onVisitFood?: (airportCode: string, index: number, name: string, points: number) => void;
+  canInteract?: boolean;          // 現在地の場合のみインタラクション可能
 }
 
 const REGION_NAMES: Record<string, string> = {
@@ -33,6 +38,11 @@ export function AirportPanel({
   airport,
   isCurrentLocation = false,
   nearbySpots = [],
+  visitedAttractions = [],
+  visitedFoods = [],
+  onVisitAttraction,
+  onVisitFood,
+  canInteract = false,
 }: AirportPanelProps) {
   const airportData = getAirportByCode(airport);
 
@@ -87,11 +97,138 @@ export function AirportPanel({
           </div>
         </div>
 
-        {/* 近くの観光スポット */}
+        {/* 観光名所（空港データから） */}
+        {airportData.attractions && airportData.attractions.length > 0 && (
+          <div>
+            <p className="text-sm font-semibold text-gray-600 mb-2">
+              🏛️ 観光名所
+            </p>
+            <div className="space-y-2">
+              {airportData.attractions.map((attraction, index) => {
+                const attractionId = `${airportData.code}-attraction-${index}`;
+                const isVisited = visitedAttractions.includes(attractionId);
+                // この空港で既に観光名所を訪問済みかチェック（1つのみ選択可能）
+                const hasVisitedAttractionInAirport = visitedAttractions.some(id => id.startsWith(`${airportData.code}-attraction-`));
+                const canClick = canInteract && !hasVisitedAttractionInAirport && onVisitAttraction;
+
+                return (
+                  <div
+                    key={index}
+                    className={`p-3 rounded-lg transition-all ${
+                      isVisited
+                        ? "bg-green-50 border-2 border-green-300"
+                        : hasVisitedAttractionInAirport
+                        ? "bg-gray-100 opacity-50"
+                        : canClick
+                        ? "bg-gradient-to-r from-sky-50 to-blue-50 hover:from-sky-100 hover:to-blue-100 cursor-pointer border-2 border-transparent hover:border-sky-300"
+                        : "bg-gradient-to-r from-sky-50 to-blue-50"
+                    }`}
+                    onClick={() => {
+                      if (canClick) {
+                        onVisitAttraction(airportData.code, index, attraction.name, attraction.emotionPoints, attraction.emotionCategory);
+                      }
+                    }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">{attraction.icon}</span>
+                      <div className="flex-1">
+                        <p className="font-semibold">{attraction.name}</p>
+                        <p className="text-xs text-gray-500">
+                          {attraction.description}
+                        </p>
+                      </div>
+                      {isVisited ? (
+                        <Badge variant="secondary" className="bg-green-100 text-green-700">
+                          ✓ 訪問済み
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="secondary"
+                          className={canClick ? "bg-sky-200 text-sky-800" : "bg-sky-100 text-sky-700"}
+                        >
+                          {EMOTION_LABELS[attraction.emotionCategory]?.icon}{" "}
+                          +{attraction.emotionPoints}pt
+                        </Badge>
+                      )}
+                    </div>
+                    {canClick && !isVisited && (
+                      <p className="text-xs text-sky-600 mt-1 text-center">タップして訪問</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ご当地グルメ（空港データから） */}
+        {airportData.localFood && airportData.localFood.length > 0 && (
+          <div>
+            <p className="text-sm font-semibold text-gray-600 mb-2">
+              🍽️ ご当地グルメ
+            </p>
+            <div className="space-y-2">
+              {airportData.localFood.map((food, index) => {
+                const foodId = `${airportData.code}-food-${index}`;
+                const isVisited = visitedFoods.includes(foodId);
+                // この空港で既にグルメを体験済みかチェック（1つのみ選択可能）
+                const hasVisitedFoodInAirport = visitedFoods.some(id => id.startsWith(`${airportData.code}-food-`));
+                const canClick = canInteract && !hasVisitedFoodInAirport && onVisitFood;
+
+                return (
+                  <div
+                    key={index}
+                    className={`p-3 rounded-lg transition-all ${
+                      isVisited
+                        ? "bg-green-50 border-2 border-green-300"
+                        : hasVisitedFoodInAirport
+                        ? "bg-gray-100 opacity-50"
+                        : canClick
+                        ? "bg-gradient-to-r from-orange-50 to-yellow-50 hover:from-orange-100 hover:to-yellow-100 cursor-pointer border-2 border-transparent hover:border-orange-300"
+                        : "bg-gradient-to-r from-orange-50 to-yellow-50"
+                    }`}
+                    onClick={() => {
+                      if (canClick) {
+                        onVisitFood(airportData.code, index, food.name, food.emotionPoints);
+                      }
+                    }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">{food.icon}</span>
+                      <div className="flex-1">
+                        <p className="font-semibold">{food.name}</p>
+                        <p className="text-xs text-gray-500">
+                          {food.description}
+                        </p>
+                      </div>
+                      {isVisited ? (
+                        <Badge variant="secondary" className="bg-green-100 text-green-700">
+                          ✓ 味わい済み
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="secondary"
+                          className={canClick ? "bg-orange-200 text-orange-800" : "bg-orange-100 text-orange-700"}
+                        >
+                          +{food.emotionPoints}pt
+                        </Badge>
+                      )}
+                    </div>
+                    {canClick && !isVisited && (
+                      <p className="text-xs text-orange-600 mt-1 text-center">タップして味わう</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* 近くの観光スポット（TouristSpotデータから） */}
         {nearbySpots.length > 0 && (
           <div>
             <p className="text-sm font-semibold text-gray-600 mb-2">
-              🏛️ 近くの観光スポット
+              🗺️ 周辺の観光スポット
             </p>
             <div className="space-y-2">
               {nearbySpots.map((spot) => (
@@ -128,7 +265,10 @@ export function AirportPanel({
           </div>
         )}
 
-        {nearbySpots.length === 0 && (
+        {/* 何も情報がない場合 */}
+        {(!airportData.attractions || airportData.attractions.length === 0) &&
+         (!airportData.localFood || airportData.localFood.length === 0) &&
+         nearbySpots.length === 0 && (
           <div className="text-center p-4 bg-gray-50 rounded-lg text-gray-500">
             <p className="text-2xl mb-2">🛫</p>
             <p className="text-sm">この空港には観光スポットがありません</p>
