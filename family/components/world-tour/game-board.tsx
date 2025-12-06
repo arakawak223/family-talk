@@ -12,7 +12,7 @@ import { PlayerState, EmotionCategory, TravelProgress, RouteSpace, RouteSpaceTyp
 import { AIRPORTS, getAirportByCode, calculateDistance, distanceToSpaces } from "@/lib/data/airports";
 import { getSpotsByAirport } from "@/lib/data/tourist-spots";
 import { getRandomQuiz } from "@/lib/data/quiz-pool";
-import { getRandomQuestion, MessageQuestion } from "@/lib/data/message-questions";
+import { getRandomQuestionOnly, getRandomMessageOnly, MessageQuestion } from "@/lib/data/message-questions";
 import { speakText, stopSpeaking } from "@/lib/speech";
 
 interface GameBoardProps {
@@ -361,16 +361,19 @@ export function GameBoard({ userId }: GameBoardProps) {
         setGamePhase("quiz");
         setMessage(`❓ クイズマスに止まりました！問題に答えよう`);
       } else if (landedSpace?.type === 'message') {
-        // メッセージマスに止まった - ひと言しつもんを取得して読み上げ
-        const question = getRandomQuestion();
-        setCurrentMessageQuestion(question);
+        // メッセージマスに止まった - ランダムで「ひと言しつもん」か「あなたへのメッセージ」を取得
+        const isQuestion = Math.random() < 0.5;
+        const messageItem = isQuestion ? getRandomQuestionOnly() : getRandomMessageOnly();
+        setCurrentMessageQuestion(messageItem);
         setGamePhase("message_event");
-        setMessage(`✉️ メッセージマスに止まりました！`);
+
+        const typeLabel = messageItem.type === 'question' ? '💬 ひと言しつもん' : '💌 あなたへのメッセージ';
+        setMessage(`✉️ メッセージマスに止まりました！${typeLabel}`);
 
         // 少し遅延してから音声読み上げ（絵文字は自動除去される）
         setTimeout(() => {
           setIsSpeaking(true);
-          speakText(question.question, {
+          speakText(messageItem.content, {
             rate: 0.95,
             onEnd: () => setIsSpeaking(false),
             onError: () => setIsSpeaking(false),
@@ -968,16 +971,34 @@ export function GameBoard({ userId }: GameBoardProps) {
             {/* メッセージマス */}
             {gamePhase === "message_event" && currentMessageQuestion && (
               <div className="space-y-4">
-                <div className="p-4 bg-green-50 rounded-lg border-2 border-green-300">
+                <div className={`p-4 rounded-lg border-2 ${
+                  currentMessageQuestion.type === 'question'
+                    ? 'bg-green-50 border-green-300'
+                    : 'bg-pink-50 border-pink-300'
+                }`}>
                   <div className="flex items-center gap-2 mb-3">
-                    <span className="text-3xl">✉️</span>
-                    <p className="font-bold text-green-800">ひと言しつもん</p>
-                    <Badge className="ml-auto bg-green-600">30pt</Badge>
+                    <span className="text-3xl">
+                      {currentMessageQuestion.type === 'question' ? '💬' : '💌'}
+                    </span>
+                    <p className={`font-bold ${
+                      currentMessageQuestion.type === 'question' ? 'text-green-800' : 'text-pink-800'
+                    }`}>
+                      {currentMessageQuestion.type === 'question' ? 'ひと言しつもん' : 'あなたへのメッセージ'}
+                    </p>
+                    <Badge className={`ml-auto ${
+                      currentMessageQuestion.type === 'question' ? 'bg-green-600' : 'bg-pink-600'
+                    }`}>30pt</Badge>
                   </div>
 
-                  {/* 質問表示エリア */}
+                  {/* メッセージ表示エリア */}
                   <div className={`p-4 bg-white rounded-lg border-2 mb-4 transition-all ${
-                    isSpeaking ? "border-green-500 shadow-lg animate-pulse" : "border-green-200"
+                    isSpeaking
+                      ? currentMessageQuestion.type === 'question'
+                        ? "border-green-500 shadow-lg animate-pulse"
+                        : "border-pink-500 shadow-lg animate-pulse"
+                      : currentMessageQuestion.type === 'question'
+                        ? "border-green-200"
+                        : "border-pink-200"
                   }`}>
                     <div className="flex items-center gap-3 mb-2">
                       <span className="text-4xl">{currentMessageQuestion.icon}</span>
@@ -985,22 +1006,30 @@ export function GameBoard({ userId }: GameBoardProps) {
                         <span className="text-2xl animate-bounce">🔊</span>
                       )}
                     </div>
-                    <p className="text-xl font-bold text-green-800">
-                      {currentMessageQuestion.question}
+                    <p className={`text-xl font-bold ${
+                      currentMessageQuestion.type === 'question' ? 'text-green-800' : 'text-pink-800'
+                    }`}>
+                      {currentMessageQuestion.content}
                     </p>
                   </div>
 
                   <p className="text-gray-600 text-sm mb-4">
-                    質問に声に出して答えてみよう！
+                    {currentMessageQuestion.type === 'question'
+                      ? '質問に声に出して答えてみよう！'
+                      : '心に響いたら、声に出して読んでみよう！'}
                   </p>
 
                   <div className="space-y-2">
                     <Button
-                      className="w-full bg-green-600 hover:bg-green-700"
+                      className={`w-full ${
+                        currentMessageQuestion.type === 'question'
+                          ? 'bg-green-600 hover:bg-green-700'
+                          : 'bg-pink-600 hover:bg-pink-700'
+                      }`}
                       disabled={isSpeaking}
                       onClick={() => {
                         setIsSpeaking(true);
-                        speakText(currentMessageQuestion.question, {
+                        speakText(currentMessageQuestion.content, {
                           rate: 0.95,
                           onEnd: () => setIsSpeaking(false),
                           onError: () => setIsSpeaking(false),
@@ -1011,13 +1040,19 @@ export function GameBoard({ userId }: GameBoardProps) {
                     </Button>
                     <Button
                       variant="outline"
-                      className="w-full border-green-400 text-green-700 hover:bg-green-50"
+                      className={`w-full ${
+                        currentMessageQuestion.type === 'question'
+                          ? 'border-green-400 text-green-700 hover:bg-green-50'
+                          : 'border-pink-400 text-pink-700 hover:bg-pink-50'
+                      }`}
                       onClick={() => {
                         stopSpeaking();
                         skipMessageEvent();
                       }}
                     >
-                      答えたよ！次へ進む（+30pt）
+                      {currentMessageQuestion.type === 'question'
+                        ? '答えたよ！次へ進む（+30pt）'
+                        : 'ありがとう！次へ進む（+30pt）'}
                     </Button>
                   </div>
                 </div>
