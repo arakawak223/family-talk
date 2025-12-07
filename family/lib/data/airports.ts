@@ -1006,16 +1006,16 @@ function toRad(deg: number): number {
 
 /**
  * 距離からマス数を計算
- * 1000kmあたり1マス（端数切り上げ）
- * 例: 800km = 1マス, 1200km = 2マス, 5500km = 6マス
+ * 500kmあたり1マス（端数切り上げ）
+ * 例: 400km = 1マス, 800km = 2マス, 3000km = 6マス
  */
 export function distanceToSpaces(distanceKm: number): number {
-  return Math.ceil(distanceKm / 1000);
+  return Math.ceil(distanceKm / 500);
 }
 
 /**
  * サイコロの目で到達可能かどうかを判定
- * 1ターンで移動できるのは最大6マス（6000km）
+ * 1ターンで移動できるのは最大6マス（3000km）
  */
 export function canReachInOneTurn(distanceKm: number, diceRoll: number): boolean {
   const spacesNeeded = distanceToSpaces(distanceKm);
@@ -1038,7 +1038,7 @@ export function findWaypointAirports(
   if (totalSpaces <= maxSpaces) return [];
 
   // 目的地方向にある空港を探し、到達可能な範囲内の候補を返す
-  const maxDistanceKm = maxSpaces * 1000;
+  const maxDistanceKm = maxSpaces * 500;
 
   // 方向ベクトルを計算
   const dirLat = to.coordinates.lat - from.coordinates.lat;

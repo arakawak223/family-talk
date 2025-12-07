@@ -13,6 +13,7 @@ import { AIRPORTS, getAirportByCode, calculateDistance, distanceToSpaces } from 
 import { getSpotsByAirport } from "@/lib/data/tourist-spots";
 import { getRandomQuiz } from "@/lib/data/quiz-pool";
 import { getRandomQuestionOnly, getRandomMessageOnly, MessageQuestion } from "@/lib/data/message-questions";
+import { getRandomComedy, getComedyTypeLabel, getComedyTypeIcon, ComedyContent } from "@/lib/data/comedy-content";
 import { speakText, stopSpeaking } from "@/lib/speech";
 
 interface GameBoardProps {
@@ -38,6 +39,7 @@ function createInitialPlayer(id: string, name: string): PlayerState {
     visitedSpots: [],
     inventory: [],
     turnsPlayed: 0,
+    powerBoosterTickets: [],
   };
 }
 
@@ -71,7 +73,7 @@ function calculateRoutePositions(
   return positions;
 }
 
-// 空路上のマス情報を生成（クイズマス、メッセージマス含む）
+// 空路上のマス情報を生成（クイズマス、メッセージマス、お笑いマス含む）
 function generateRouteSpaces(
   startAirport: string,
   endAirport: string,
@@ -83,9 +85,12 @@ function generateRouteSpaces(
 
   const spaces: RouteSpace[] = [];
 
-  // 空港以外のマスにランダムでクイズやメッセージマスを配置
+  // 空港以外のマスにランダムでイベントマスを配置
   // 2〜3マスごとに1つ特殊マスを配置
   const specialSpaceInterval = 2 + Math.floor(Math.random() * 2); // 2〜3
+
+  // 特殊マスのタイプ順序: quiz → message → comedy → quiz → ...
+  const spaceTypes: RouteSpaceType[] = ['quiz', 'message', 'comedy'];
 
   for (let i = 0; i <= totalSpaces; i++) {
     const progress = i / totalSpaces;
@@ -97,14 +102,20 @@ function generateRouteSpaces(
     // 最初と最後のマス（空港）以外にイベントマスを配置
     if (i > 0 && i < totalSpaces) {
       if (i % specialSpaceInterval === 0) {
-        // 交互にクイズマスとメッセージマスを配置
-        const isQuiz = Math.floor(i / specialSpaceInterval) % 2 === 1;
-        if (isQuiz) {
-          type = 'quiz';
-          icon = '❓';
-        } else {
-          type = 'message';
-          icon = '✉️';
+        // 順番にクイズマス・メッセージマス・お笑いマスを配置
+        const typeIndex = (Math.floor(i / specialSpaceInterval) - 1) % spaceTypes.length;
+        type = spaceTypes[typeIndex];
+
+        switch (type) {
+          case 'quiz':
+            icon = '❓';
+            break;
+          case 'message':
+            icon = '✉️';
+            break;
+          case 'comedy':
+            icon = '😂';
+            break;
         }
       }
     }
@@ -140,7 +151,7 @@ export function GameBoard({ userId }: GameBoardProps) {
     createInitialPlayer(userId, "プレイヤー")
   );
   const [gamePhase, setGamePhase] = useState<
-    "idle" | "setting_destination" | "rolling" | "moving" | "arrived" | "visiting" | "quiz" | "message_event"
+    "idle" | "setting_destination" | "rolling" | "moving" | "arrived" | "visiting" | "quiz" | "message_event" | "comedy_event"
   >("idle");
   const [diceResult, setDiceResult] = useState<number | null>(null);
   const [selectedAirport, setSelectedAirport] = useState<string | null>(null);
@@ -153,7 +164,9 @@ export function GameBoard({ userId }: GameBoardProps) {
   const [visitedAttractions, setVisitedAttractions] = useState<string[]>([]);
   const [visitedFoods, setVisitedFoods] = useState<string[]>([]);
   const [currentMessageQuestion, setCurrentMessageQuestion] = useState<MessageQuestion | null>(null);
+  const [currentComedyContent, setCurrentComedyContent] = useState<ComedyContent | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [activeBoosterTicket, setActiveBoosterTicket] = useState<string | null>(null); // 使用中のチケットID
 
   // 目的地選択用のリスト
   const allDestinations = useMemo(() =>
@@ -202,11 +215,13 @@ export function GameBoard({ userId }: GameBoardProps) {
     // ルートスペースの中で特殊マスがあるか確認
     const quizCount = routeSpaces.filter(s => s.type === 'quiz').length;
     const messageCount = routeSpaces.filter(s => s.type === 'message').length;
+    const comedyCount = routeSpaces.filter(s => s.type === 'comedy').length;
     let specialInfo = '';
-    if (quizCount > 0 || messageCount > 0) {
+    if (quizCount > 0 || messageCount > 0 || comedyCount > 0) {
       const parts = [];
       if (quizCount > 0) parts.push(`❓クイズ×${quizCount}`);
       if (messageCount > 0) parts.push(`✉️メッセージ×${messageCount}`);
+      if (comedyCount > 0) parts.push(`😂お笑い×${comedyCount}`);
       specialInfo = ` (${parts.join(', ')})`;
     }
 
@@ -232,14 +247,35 @@ export function GameBoard({ userId }: GameBoardProps) {
     setMessage("目的地をキャンセルしました");
   }, []);
 
+  // パワーブースター・チケットを使用する
+  const activateBoosterTicket = useCallback((ticketId: string) => {
+    setActiveBoosterTicket(ticketId);
+    const ticket = player.powerBoosterTickets.find(t => t.id === ticketId);
+    if (ticket) {
+      setMessage(`✨ パワーブースター・チケット（${ticket.multiplier}倍）を使用！サイコロを振ってください`);
+      speakText(`パワーブースターチケットを使用しました。サイコロの目が${ticket.multiplier}倍になります。`, { rate: 0.95 });
+    }
+  }, [player.powerBoosterTickets]);
+
+  // パワーブースター・チケットの使用をキャンセル
+  const cancelBoosterTicket = useCallback(() => {
+    setActiveBoosterTicket(null);
+    setMessage("チケットの使用をキャンセルしました");
+  }, []);
+
   // サイコロを振る
   const rollDice = useCallback(() => {
     if (!player.travelProgress) return;
 
     setGamePhase("rolling");
-    const hasPowerBonus = player.powerSpotBonus && player.powerSpotBonus.remainingTurns > 0;
-    setMessage(hasPowerBonus
-      ? `✨ パワースポット効果発動中！（残り${player.powerSpotBonus!.remainingTurns}回）サイコロを振っています...`
+
+    // アクティブなチケットを取得
+    const activeTicket = activeBoosterTicket
+      ? player.powerBoosterTickets.find(t => t.id === activeBoosterTicket)
+      : null;
+
+    setMessage(activeTicket
+      ? `✨ パワーブースター発動！（${activeTicket.multiplier}倍）サイコロを振っています...`
       : "サイコロを振っています...");
 
     // サイコロアニメーション
@@ -251,24 +287,20 @@ export function GameBoard({ userId }: GameBoardProps) {
         clearInterval(interval);
         const baseResult = Math.floor(Math.random() * 6) + 1;
 
-        // パワースポットボーナス適用
+        // パワーブースター・チケット適用
         let finalResult = baseResult;
         let bonusMessage = "";
-        if (hasPowerBonus) {
-          const multiplier = player.powerSpotBonus!.multiplier;
+        if (activeTicket) {
+          const multiplier = activeTicket.multiplier;
           finalResult = baseResult * multiplier;
           bonusMessage = ` (${baseResult} × ${multiplier}倍 = ${finalResult})`;
 
-          // ボーナス残り回数を減らす
+          // 使用したチケットを削除
           setPlayer((prev) => ({
             ...prev,
-            powerSpotBonus: prev.powerSpotBonus
-              ? {
-                  ...prev.powerSpotBonus,
-                  remainingTurns: prev.powerSpotBonus.remainingTurns - 1,
-                }
-              : undefined,
+            powerBoosterTickets: prev.powerBoosterTickets.filter(t => t.id !== activeBoosterTicket),
           }));
+          setActiveBoosterTicket(null);
         }
 
         setDiceResult(finalResult);
@@ -282,7 +314,7 @@ export function GameBoard({ userId }: GameBoardProps) {
         }
       }
     }, 100);
-  }, [player.travelProgress, player.powerSpotBonus]);
+  }, [player.travelProgress, player.powerBoosterTickets, activeBoosterTicket]);
 
   // 移動を確定
   const confirmMove = useCallback(() => {
@@ -379,6 +411,30 @@ export function GameBoard({ userId }: GameBoardProps) {
             onError: () => setIsSpeaking(false),
           });
         }, 500);
+      } else if (landedSpace?.type === 'comedy') {
+        // お笑いマスに止まった
+        const comedyContent = getRandomComedy();
+        setCurrentComedyContent(comedyContent);
+        setGamePhase("comedy_event");
+
+        const typeLabel = getComedyTypeLabel(comedyContent.type);
+        setMessage(`😂 お笑いマスに止まりました！${getComedyTypeIcon(comedyContent.type)} ${typeLabel}`);
+
+        // 少し遅延してから音声読み上げ
+        setTimeout(() => {
+          setIsSpeaking(true);
+          // speakTextフィールドがあればそれを使う（昭和ギャグのリアル読み上げ）
+          // ボケツッコミの場合は全体を読み上げ
+          let textToSpeak = comedyContent.speakText || comedyContent.content;
+          if (comedyContent.type === 'boke_tsukkomi' && comedyContent.setup && comedyContent.boke && comedyContent.tsukkomi) {
+            textToSpeak = `${comedyContent.setup}。${comedyContent.boke}。${comedyContent.tsukkomi}`;
+          }
+          speakText(textToSpeak, {
+            rate: 0.9, // 少しゆっくりめに
+            onEnd: () => setIsSpeaking(false),
+            onError: () => setIsSpeaking(false),
+          });
+        }, 500);
       } else {
         setGamePhase("idle");
         setMessage(`${diceResult}マス進みました！残り${totalSpaces - newSpace}マス`);
@@ -467,7 +523,24 @@ export function GameBoard({ userId }: GameBoardProps) {
         joy: prev.emotionPoints.joy + 30,
       },
     }));
-    setMessage("✉️ メッセージマスのボーナス +30pt！（ボイスメッセージ機能は今後追加予定）");
+    setCurrentMessageQuestion(null);
+    setMessage("✉️ メッセージマスのボーナス +30pt！");
+    setGamePhase("idle");
+  }, []);
+
+  // お笑いイベントを完了
+  const completeComedyEvent = useCallback(() => {
+    stopSpeaking();
+    setPlayer((prev) => ({
+      ...prev,
+      emotionPoints: {
+        ...prev.emotionPoints,
+        total: prev.emotionPoints.total + 40,
+        fun: prev.emotionPoints.fun + 40,
+      },
+    }));
+    setCurrentComedyContent(null);
+    setMessage("😂 お笑いマスのボーナス +40pt！笑いは健康の源！");
     setGamePhase("idle");
   }, []);
 
@@ -488,9 +561,10 @@ export function GameBoard({ userId }: GameBoardProps) {
     const attractionId = `${airportCode}-attraction-${index}`;
     setVisitedAttractions((prev) => [...prev, attractionId]);
 
-    // パワースポットの場合、サイコロ倍率ボーナスを付与
+    // パワースポットの場合、パワーブースター・チケットを付与
     if (isPowerSpot) {
       const multiplier = 2 + Math.floor(Math.random() * 2); // 2〜3倍
+      const ticketId = `ticket-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
       setPlayer((prev) => ({
         ...prev,
         emotionPoints: {
@@ -498,15 +572,19 @@ export function GameBoard({ userId }: GameBoardProps) {
           total: prev.emotionPoints.total + points,
           [category]: prev.emotionPoints[category] + points,
         },
-        powerSpotBonus: {
-          multiplier,
-          remainingTurns: 3,
-          spotName: name,
-        },
+        powerBoosterTickets: [
+          ...prev.powerBoosterTickets,
+          {
+            id: ticketId,
+            multiplier,
+            spotName: name,
+            obtainedAt: airportCode,
+          },
+        ],
       }));
-      setMessage(`✨ ${name}を訪問！ +${points}pt 獲得！パワースポットの力で次の3回サイコロが${multiplier}倍に！`);
+      setMessage(`✨ ${name}を訪問！ +${points}pt 獲得！パワーブースター・チケット（${multiplier}倍）をゲット！`);
       // パワースポット効果の音声通知
-      speakText(`パワースポットの力を得ました。次の3回、サイコロの目が${multiplier}倍になります。`, { rate: 0.95 });
+      speakText(`パワーブースターチケットを獲得しました。サイコロを振る前に使うと、サイコロの目が${multiplier}倍になります。`, { rate: 0.95 });
     } else {
       setPlayer((prev) => ({
         ...prev,
@@ -603,18 +681,19 @@ export function GameBoard({ userId }: GameBoardProps) {
               </div>
             )}
 
-            {/* パワースポットボーナス表示 */}
-            {player.powerSpotBonus && player.powerSpotBonus.remainingTurns > 0 && (
-              <div className="flex items-center gap-2 p-2 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg border border-yellow-300 animate-pulse">
-                <span className="text-2xl">✨</span>
+            {/* パワーブースター・チケット表示 */}
+            {player.powerBoosterTickets.length > 0 && (
+              <div className="flex items-center gap-2 p-2 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg border border-yellow-300">
+                <span className="text-2xl">🎫</span>
                 <div>
-                  <p className="text-sm text-yellow-700 font-medium">パワースポット効果</p>
-                  <p className="font-bold text-amber-600">
-                    サイコロ{player.powerSpotBonus.multiplier}倍
-                  </p>
-                  <p className="text-xs text-yellow-600">
-                    残り{player.powerSpotBonus.remainingTurns}回
-                  </p>
+                  <p className="text-sm text-yellow-700 font-medium">パワーブースター</p>
+                  <div className="flex gap-1">
+                    {player.powerBoosterTickets.map((ticket) => (
+                      <Badge key={ticket.id} className="bg-amber-500 text-white">
+                        {ticket.multiplier}倍
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
@@ -775,6 +854,8 @@ export function GameBoard({ userId }: GameBoardProps) {
                             bgColor = "bg-purple-100 border-purple-400";
                           } else if (space.type === 'message') {
                             bgColor = "bg-green-100 border-green-400";
+                          } else if (space.type === 'comedy') {
+                            bgColor = "bg-orange-100 border-orange-400";
                           }
 
                           let icon = space.icon;
@@ -793,6 +874,7 @@ export function GameBoard({ userId }: GameBoardProps) {
                                 isDestination ? "目的地" :
                                 space.type === 'quiz' ? "クイズマス" :
                                 space.type === 'message' ? "メッセージマス" :
+                                space.type === 'comedy' ? "お笑いマス" :
                                 `${i}マス目`
                               }
                             >
@@ -807,12 +889,63 @@ export function GameBoard({ userId }: GameBoardProps) {
                         <span>到着</span>
                       </div>
                     </div>
+
+                    {/* パワーブースター・チケット使用UI */}
+                    {player.powerBoosterTickets.length > 0 && !activeBoosterTicket && (
+                      <div className="p-3 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg border border-yellow-300">
+                        <p className="text-sm text-yellow-700 font-medium mb-2">🎫 パワーブースター・チケットを使う？</p>
+                        <div className="flex flex-wrap gap-2">
+                          {player.powerBoosterTickets.map((ticket) => (
+                            <Button
+                              key={ticket.id}
+                              variant="outline"
+                              size="sm"
+                              className="border-amber-400 text-amber-700 hover:bg-amber-100"
+                              onClick={() => activateBoosterTicket(ticket.id)}
+                            >
+                              ✨ {ticket.multiplier}倍チケット
+                            </Button>
+                          ))}
+                        </div>
+                        <p className="text-xs text-gray-500 mt-2">使用するとサイコロの目が倍になります</p>
+                      </div>
+                    )}
+
+                    {/* チケット使用中の表示 */}
+                    {activeBoosterTicket && (
+                      <div className="p-3 bg-gradient-to-r from-amber-100 to-yellow-100 rounded-lg border-2 border-amber-400 animate-pulse">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-2xl">✨</span>
+                            <div>
+                              <p className="font-bold text-amber-700">パワーブースター発動中！</p>
+                              <p className="text-sm text-amber-600">
+                                {player.powerBoosterTickets.find(t => t.id === activeBoosterTicket)?.multiplier}倍
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-gray-500"
+                            onClick={cancelBoosterTicket}
+                          >
+                            キャンセル
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
                     <Button
                       onClick={rollDice}
                       size="lg"
-                      className="w-full text-xl py-6 bg-sky-600 hover:bg-sky-700"
+                      className={`w-full text-xl py-6 ${
+                        activeBoosterTicket
+                          ? "bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600"
+                          : "bg-sky-600 hover:bg-sky-700"
+                      }`}
                     >
-                      🎲 サイコロを振る
+                      {activeBoosterTicket ? "✨🎲 パワーブースターでサイコロを振る！" : "🎲 サイコロを振る"}
                     </Button>
                     <Button
                       variant="ghost"
@@ -1013,11 +1146,11 @@ export function GameBoard({ userId }: GameBoardProps) {
                     </p>
                   </div>
 
-                  <p className="text-gray-600 text-sm mb-4">
-                    {currentMessageQuestion.type === 'question'
-                      ? '質問に声に出して答えてみよう！'
-                      : '心に響いたら、声に出して読んでみよう！'}
-                  </p>
+                  {currentMessageQuestion.type === 'question' && (
+                    <p className="text-gray-600 text-sm mb-4">
+                      質問に声に出して答えてみよう！
+                    </p>
+                  )}
 
                   <div className="space-y-2">
                     <Button
@@ -1053,6 +1186,108 @@ export function GameBoard({ userId }: GameBoardProps) {
                       {currentMessageQuestion.type === 'question'
                         ? '答えたよ！次へ進む（+30pt）'
                         : 'ありがとう！次へ進む（+30pt）'}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* お笑いマス */}
+            {gamePhase === "comedy_event" && currentComedyContent && (
+              <div className="space-y-4">
+                <div className="p-4 rounded-lg border-2 bg-yellow-50 border-yellow-300">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-3xl">😂</span>
+                    <p className="font-bold text-yellow-800">
+                      {getComedyTypeIcon(currentComedyContent.type)} {getComedyTypeLabel(currentComedyContent.type)}
+                    </p>
+                    <Badge className="ml-auto bg-yellow-600">40pt</Badge>
+                  </div>
+
+                  {/* コンテンツ表示エリア */}
+                  <div className={`p-4 bg-white rounded-lg border-2 mb-4 transition-all ${
+                    isSpeaking
+                      ? "border-yellow-500 shadow-lg animate-pulse"
+                      : "border-yellow-200"
+                  }`}>
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="text-4xl">{currentComedyContent.icon}</span>
+                      {isSpeaking && (
+                        <span className="text-2xl animate-bounce">🔊</span>
+                      )}
+                    </div>
+
+                    {/* 昭和ギャグ・平成ギャグ・令和ギャグ */}
+                    {(currentComedyContent.type === 'showa_gag' || currentComedyContent.type === 'heisei_gag' || currentComedyContent.type === 'reiwa_gag') && (
+                      <div>
+                        <p className="text-2xl font-bold text-yellow-800 mb-2">
+                          「{currentComedyContent.content}」
+                        </p>
+                        {currentComedyContent.performer && (
+                          <p className="text-gray-600">
+                            — {currentComedyContent.performer}
+                          </p>
+                        )}
+                        {currentComedyContent.hint && (
+                          <p className="text-sm text-gray-500 mt-2">
+                            💡 {currentComedyContent.hint}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* ボケとツッコミ */}
+                    {currentComedyContent.type === 'boke_tsukkomi' && (
+                      <div className="space-y-3">
+                        {currentComedyContent.setup && (
+                          <p className="text-gray-600 italic">
+                            🎬 {currentComedyContent.setup}
+                          </p>
+                        )}
+                        {currentComedyContent.boke && (
+                          <p className="text-lg text-yellow-800">
+                            {currentComedyContent.boke}
+                          </p>
+                        )}
+                        {currentComedyContent.tsukkomi && (
+                          <p className="text-xl font-bold text-red-600">
+                            {currentComedyContent.tsukkomi}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <p className="text-gray-600 text-sm mb-4">
+                    声に出してやってみよう！家族みんなで笑おう！
+                  </p>
+
+                  <div className="space-y-2">
+                    <Button
+                      className="w-full bg-yellow-600 hover:bg-yellow-700"
+                      disabled={isSpeaking}
+                      onClick={() => {
+                        setIsSpeaking(true);
+                        // speakTextフィールドがあればそれを使う（ギャグのリアル読み上げ）
+                        let textToSpeak = currentComedyContent.speakText || currentComedyContent.content;
+                        if (currentComedyContent.type === 'boke_tsukkomi' && currentComedyContent.setup && currentComedyContent.boke && currentComedyContent.tsukkomi) {
+                          textToSpeak = `${currentComedyContent.setup}。${currentComedyContent.boke}。${currentComedyContent.tsukkomi}`;
+                        }
+                        speakText(textToSpeak, {
+                          rate: 0.9, // 少しゆっくりめに
+                          onEnd: () => setIsSpeaking(false),
+                          onError: () => setIsSpeaking(false),
+                        });
+                      }}
+                    >
+                      {isSpeaking ? "読み上げ中..." : "🔊 もう一度読み上げる"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="w-full border-yellow-400 text-yellow-700 hover:bg-yellow-50"
+                      onClick={completeComedyEvent}
+                    >
+                      笑った！次へ進む（+40pt）
                     </Button>
                   </div>
                 </div>

@@ -131,16 +131,20 @@ export interface PlayerState {
   // 長距離移動用
   destinationAirport?: string;     // 最終目的地（設定中の場合）
   travelProgress?: TravelProgress; // 移動進捗
-  // パワースポットボーナス
-  powerSpotBonus?: {
-    multiplier: number;            // サイコロ倍率（2〜3）
-    remainingTurns: number;        // 残りターン数
-    spotName: string;              // パワースポット名
-  };
+  // パワーブースター・チケット（パワースポットで獲得）
+  powerBoosterTickets: PowerBoosterTicket[];
+}
+
+// パワーブースター・チケット
+export interface PowerBoosterTicket {
+  id: string;                      // チケットID
+  multiplier: number;              // サイコロ倍率（2〜3）
+  spotName: string;                // 取得したパワースポット名
+  obtainedAt: string;              // 取得した空港コード
 }
 
 // 空路上のマスタイプ
-export type RouteSpaceType = 'normal' | 'quiz' | 'message';
+export type RouteSpaceType = 'normal' | 'quiz' | 'message' | 'comedy';
 
 // 空路上のマス情報
 export interface RouteSpace {

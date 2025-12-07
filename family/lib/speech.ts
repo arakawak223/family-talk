@@ -130,8 +130,18 @@ export async function speakText(
     };
 
     utterance.onerror = (event) => {
-      console.error('Speech synthesis error:', event);
-      options.onError?.(new Error(event.error));
+      // 'interrupted' はユーザーによるキャンセルなのでエラーとして扱わない
+      // 'canceled' も同様
+      if (event.error === 'interrupted' || event.error === 'canceled') {
+        options.onEnd?.();
+        resolve();
+        return;
+      }
+      // その他のエラーのみログ出力
+      if (event.error && event.error !== 'not-allowed') {
+        console.warn('Speech synthesis error:', event.error);
+      }
+      options.onError?.(new Error(event.error || 'Unknown speech error'));
       resolve();
     };
 
