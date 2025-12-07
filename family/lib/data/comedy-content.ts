@@ -63,7 +63,7 @@ export const SHOWA_GAGS: ComedyContent[] = [
   {
     id: 'showa-15', type: 'showa_gag',
     content: 'ガチョーン',
-    speakText: 'ガッチョーーーーーーーン！',
+    speakText: 'ガッ、チョオオオオオオオン！',
     performer: '谷啓', hint: '手を合わせて後ろに', icon: '🙌'
   },
 

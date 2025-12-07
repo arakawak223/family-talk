@@ -240,45 +240,59 @@ export function AirportPanel({
         )}
 
         {/* 近くの観光スポット（TouristSpotデータから） */}
-        {nearbySpots.length > 0 && (
-          <div>
-            <p className="text-sm font-semibold text-gray-600 mb-2">
-              🗺️ 周辺の観光スポット
-            </p>
-            <div className="space-y-2">
-              {nearbySpots.map((spot) => (
-                <div
-                  key={spot.id}
-                  className="p-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-xl">{spot.icon}</span>
-                    <div className="flex-1">
-                      <p className="font-semibold">{spot.name}</p>
-                      <p className="text-xs text-gray-500">
-                        {spot.transportFromAirport.description}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <Badge
-                        variant="secondary"
-                        className="bg-purple-100 text-purple-700"
-                      >
-                        {EMOTION_LABELS[spot.emotionCategory]?.icon}{" "}
-                        +{spot.emotionPoints}pt
-                      </Badge>
-                      {spot.isWorldHeritage && (
-                        <p className="text-xs text-amber-600 mt-1">
-                          🏆 世界遺産
+        {/* 観光名所（attractions）と重複するものは除外 */}
+        {(() => {
+          // 観光名所の名前リストを取得
+          const attractionNames = (airportData.attractions || []).map(a => a.name.toLowerCase());
+          // 重複を除外したnearbySpots
+          const filteredSpots = nearbySpots.filter(spot =>
+            !attractionNames.some(name =>
+              spot.name.toLowerCase().includes(name) || name.includes(spot.name.toLowerCase())
+            )
+          );
+
+          if (filteredSpots.length === 0) return null;
+
+          return (
+            <div>
+              <p className="text-sm font-semibold text-gray-600 mb-2">
+                🗺️ 周辺の観光スポット
+              </p>
+              <div className="space-y-2">
+                {filteredSpots.map((spot) => (
+                  <div
+                    key={spot.id}
+                    className="p-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">{spot.icon}</span>
+                      <div className="flex-1">
+                        <p className="font-semibold">{spot.name}</p>
+                        <p className="text-xs text-gray-500">
+                          {spot.transportFromAirport.description}
                         </p>
-                      )}
+                      </div>
+                      <div className="text-right">
+                        <Badge
+                          variant="secondary"
+                          className="bg-purple-100 text-purple-700"
+                        >
+                          {EMOTION_LABELS[spot.emotionCategory]?.icon}{" "}
+                          +{spot.emotionPoints}pt
+                        </Badge>
+                        {spot.isWorldHeritage && (
+                          <p className="text-xs text-amber-600 mt-1">
+                            🏆 世界遺産
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* 何も情報がない場合 */}
         {(!airportData.attractions || airportData.attractions.length === 0) &&

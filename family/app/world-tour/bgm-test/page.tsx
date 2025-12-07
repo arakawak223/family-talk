@@ -1,14 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  getBGMManager,
-  BGM_TRACKS,
-  type BGMScene
-} from '@/lib/audio/bgm-manager';
+import { BGM_TRACKS, type BGMScene } from '@/lib/audio/bgm-manager';
+import { playTone, stopTone, setToneVolume } from '@/lib/audio/tone-generator';
 import {
   Play,
   Pause,
@@ -39,54 +36,41 @@ export default function BGMTestPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(0.5);
   const [isMuted, setIsMuted] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const bgm = getBGMManager();
-    setVolume(bgm.getVolume());
-    setIsMuted(bgm.getMuted());
-  }, []);
-
-  const handlePlay = async (scene: BGMScene) => {
-    setError(null);
-    try {
-      const bgm = getBGMManager();
-      await bgm.play(scene);
-      setCurrentScene(scene);
-      setIsPlaying(true);
-    } catch (err) {
-      setError(`再生エラー: ${err}`);
-    }
+  const handlePlay = (scene: BGMScene) => {
+    playTone(scene);
+    setCurrentScene(scene);
+    setIsPlaying(true);
   };
 
-  const handleStop = async () => {
-    const bgm = getBGMManager();
-    await bgm.stop();
+  const handleStop = () => {
+    stopTone();
     setCurrentScene(null);
     setIsPlaying(false);
   };
 
   const handlePause = () => {
-    const bgm = getBGMManager();
     if (isPlaying) {
-      bgm.pause();
+      stopTone();
       setIsPlaying(false);
-    } else {
-      bgm.resume();
+    } else if (currentScene) {
+      playTone(currentScene);
       setIsPlaying(true);
     }
   };
 
   const handleVolumeChange = (value: number[]) => {
-    const bgm = getBGMManager();
-    bgm.setVolume(value[0]);
+    setToneVolume(value[0]);
     setVolume(value[0]);
   };
 
   const handleMuteToggle = () => {
-    const bgm = getBGMManager();
-    const newMuted = bgm.toggleMute();
-    setIsMuted(newMuted);
+    if (!isMuted) {
+      setToneVolume(0);
+    } else {
+      setToneVolume(volume);
+    }
+    setIsMuted(!isMuted);
   };
 
   return (
@@ -104,6 +88,16 @@ export default function BGMTestPage() {
             BGMテスト画面
           </h1>
         </div>
+
+        {/* お知らせ */}
+        <Card className="mb-6 bg-yellow-50 border-yellow-200">
+          <CardContent className="p-4">
+            <p className="text-yellow-800 text-sm">
+              <strong>注意:</strong> 現在は仮のシンセサイザー音源を使用しています。
+              本番用BGMは別途フリー素材サイトからダウンロードして配置する必要があります。
+            </p>
+          </CardContent>
+        </Card>
 
         {/* コントロールパネル */}
         <Card className="mb-6">
@@ -164,10 +158,6 @@ export default function BGMTestPage() {
                 <span className="text-sm w-12">{Math.round(volume * 100)}%</span>
               </div>
             </div>
-
-            {error && (
-              <p className="text-red-500 text-sm mt-2">{error}</p>
-            )}
           </CardContent>
         </Card>
 
@@ -187,8 +177,8 @@ export default function BGMTestPage() {
                     key={track.scene}
                     className={`
                       p-4 rounded-lg border-2 transition-all cursor-pointer
-                      ${isCurrentTrack
-                        ? `border-${style.color.split('-')[1]}-500 ring-2 ring-${style.color.split('-')[1]}-200`
+                      ${isCurrentTrack && isPlaying
+                        ? 'border-blue-500 ring-2 ring-blue-200 bg-blue-50'
                         : 'border-transparent'}
                       ${style.bgColor}
                     `}
@@ -216,26 +206,26 @@ export default function BGMTestPage() {
                       <div className="flex items-center gap-2">
                         {isCurrentTrack && isPlaying && (
                           <div className="flex gap-1">
-                            <span className="w-1 h-4 bg-current animate-pulse rounded" style={{ animationDelay: '0ms' }} />
-                            <span className="w-1 h-6 bg-current animate-pulse rounded" style={{ animationDelay: '150ms' }} />
-                            <span className="w-1 h-3 bg-current animate-pulse rounded" style={{ animationDelay: '300ms' }} />
-                            <span className="w-1 h-5 bg-current animate-pulse rounded" style={{ animationDelay: '450ms' }} />
+                            <span className="w-1 h-4 bg-blue-500 animate-pulse rounded" style={{ animationDelay: '0ms' }} />
+                            <span className="w-1 h-6 bg-blue-500 animate-pulse rounded" style={{ animationDelay: '150ms' }} />
+                            <span className="w-1 h-3 bg-blue-500 animate-pulse rounded" style={{ animationDelay: '300ms' }} />
+                            <span className="w-1 h-5 bg-blue-500 animate-pulse rounded" style={{ animationDelay: '450ms' }} />
                           </div>
                         )}
                         <Button
-                          variant={isCurrentTrack ? "default" : "outline"}
+                          variant={isCurrentTrack && isPlaying ? "default" : "outline"}
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation();
                             if (isCurrentTrack && isPlaying) {
-                              handlePause();
+                              handleStop();
                             } else {
                               handlePlay(track.scene);
                             }
                           }}
                         >
                           {isCurrentTrack && isPlaying ? (
-                            <Pause className="h-4 w-4" />
+                            <Square className="h-4 w-4" />
                           ) : (
                             <Play className="h-4 w-4" />
                           )}
@@ -256,7 +246,7 @@ export default function BGMTestPage() {
           </CardHeader>
           <CardContent className="text-sm text-gray-600 space-y-2">
             <p>
-              このゲームでは、以下のフリーBGM素材サイトから楽曲を使用することを推奨しています：
+              本番用BGMは以下のフリーBGM素材サイトから楽曲をダウンロードして配置してください：
             </p>
             <ul className="list-disc list-inside space-y-1">
               <li><strong>魔王魂</strong> - https://maou.audio/ （商用利用可、クレジット表記推奨）</li>
@@ -265,6 +255,10 @@ export default function BGMTestPage() {
             </ul>
             <p className="mt-4">
               BGMファイルは <code className="bg-gray-100 px-1 rounded">/public/audio/bgm/</code> ディレクトリに配置してください。
+            </p>
+            <p className="mt-2 text-xs text-gray-400">
+              必要なファイル: title.mp3, roulette.mp3, dice.mp3, flying.mp3, quiz.mp3,
+              comedy.mp3, message.mp3, arrival.mp3, power_spot.mp3, ending.mp3
             </p>
           </CardContent>
         </Card>

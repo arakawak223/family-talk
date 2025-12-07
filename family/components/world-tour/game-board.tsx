@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,25 +8,36 @@ import { WorldMap } from "./world-map";
 import { AirportPanel } from "./airport-panel";
 import { EmotionPointsDisplay } from "./emotion-points-display";
 import { SpotVisitModal } from "./spot-visit-modal";
-import { PlayerState, EmotionCategory, TravelProgress, RouteSpace, RouteSpaceType } from "@/lib/types/world-tour";
+import { DestinationRoulette } from "./destination-roulette";
+import { PlayerState, EmotionCategory, TravelProgress, RouteSpace, RouteSpaceType, Airport } from "@/lib/types/world-tour";
 import { AIRPORTS, getAirportByCode, calculateDistance, distanceToSpaces } from "@/lib/data/airports";
 import { getSpotsByAirport } from "@/lib/data/tourist-spots";
 import { getRandomQuiz } from "@/lib/data/quiz-pool";
 import { getRandomQuestionOnly, getRandomMessageOnly, MessageQuestion } from "@/lib/data/message-questions";
 import { getRandomComedy, getComedyTypeLabel, getComedyTypeIcon, ComedyContent } from "@/lib/data/comedy-content";
 import { speakText, stopSpeaking } from "@/lib/speech";
+import { playBGM, stopBGM, type BGMScene } from "@/lib/audio/bgm-manager";
+import { Player, PLAYER_COLORS } from "@/lib/game/player-manager";
+
+// ゲーム設定
+interface GameConfig {
+  players: Player[];
+  destinationCount: number;
+  startAirport: string;
+}
 
 interface GameBoardProps {
   userId: string;
   familyId: string;
+  gameConfig?: GameConfig | null;
 }
 
 // 初期プレイヤー状態
-function createInitialPlayer(id: string, name: string): PlayerState {
+function createInitialPlayer(id: string, name: string, startAirport: string = "NRT"): PlayerState {
   return {
     id,
     name,
-    currentAirport: "NRT", // 成田空港からスタート
+    currentAirport: startAirport,
     emotionPoints: {
       total: 0,
       fun: 0,
@@ -35,7 +46,7 @@ function createInitialPlayer(id: string, name: string): PlayerState {
       wonder: 0,
       reflection: 0,
     },
-    visitedAirports: ["NRT"],
+    visitedAirports: [startAirport],
     visitedSpots: [],
     inventory: [],
     turnsPlayed: 0,
@@ -131,27 +142,55 @@ function generateRouteSpaces(
   return spaces;
 }
 
-// 今回のサイコロで到達可能な空港を計算（目的地設定モード用）
-function getAllDestinationsWithDistance(currentAirport: string): { code: string; distance: number; spaces: number }[] {
-  const current = getAirportByCode(currentAirport);
-  if (!current) return [];
 
-  return AIRPORTS
-    .filter((airport) => airport.code !== currentAirport)
-    .map((airport) => {
-      const distance = calculateDistance(current, airport);
-      const spaces = distanceToSpaces(distance);
-      return { code: airport.code, distance, spaces };
-    })
-    .sort((a, b) => a.spaces - b.spaces);
-}
+export function GameBoard({ userId, gameConfig }: GameBoardProps) {
+  // ゲーム設定からスタート空港を取得
+  const startAirport = gameConfig?.startAirport || "NRT";
+  const destinationCount = gameConfig?.destinationCount || 5;
 
-export function GameBoard({ userId }: GameBoardProps) {
-  const [player, setPlayer] = useState<PlayerState>(() =>
-    createInitialPlayer(userId, "プレイヤー")
-  );
+  // マルチプレイヤー対応: 全プレイヤーの状態を管理
+  const [players, setPlayers] = useState<PlayerState[]>(() => {
+    if (gameConfig?.players && gameConfig.players.length > 0) {
+      return gameConfig.players.map((p, index) =>
+        createInitialPlayer(p.id.toString(), p.nickname || `プレイヤー${index + 1}`, startAirport)
+      );
+    }
+    return [createInitialPlayer(userId, "プレイヤー", startAirport)];
+  });
+
+  // 現在のプレイヤーインデックス
+  const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
+  const player = players[currentPlayerIndex];
+
+  // プレイヤー状態を更新するヘルパー関数
+  const setPlayer = useCallback((updater: PlayerState | ((prev: PlayerState) => PlayerState)) => {
+    setPlayers(prevPlayers => {
+      const newPlayers = [...prevPlayers];
+      if (typeof updater === 'function') {
+        newPlayers[currentPlayerIndex] = updater(newPlayers[currentPlayerIndex]);
+      } else {
+        newPlayers[currentPlayerIndex] = updater;
+      }
+      return newPlayers;
+    });
+  }, [currentPlayerIndex]);
+
+  // 目的地ルーレット表示状態
+  const [showRoulette, setShowRoulette] = useState(false);
+  const [visitedDestinations, setVisitedDestinations] = useState<string[]>([startAirport]);
+  const [isFinalDestination, setIsFinalDestination] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [gameCompleted, setGameCompleted] = useState(false); // TODO: ゲーム終了機能実装時に使用
+
+  // 共通目的地（全プレイヤーが同じ目的地を目指す）
+  const [sharedDestination, setSharedDestination] = useState<{
+    airport: string;
+    totalSpaces: number;
+    routeSpaces: RouteSpace[];
+  } | null>(null);
+
   const [gamePhase, setGamePhase] = useState<
-    "idle" | "setting_destination" | "rolling" | "moving" | "arrived" | "visiting" | "quiz" | "message_event" | "comedy_event"
+    "idle" | "setting_destination" | "roulette" | "rolling" | "moving" | "arrived" | "visiting" | "quiz" | "message_event" | "comedy_event"
   >("idle");
   const [diceResult, setDiceResult] = useState<number | null>(null);
   const [selectedAirport, setSelectedAirport] = useState<string | null>(null);
@@ -168,12 +207,6 @@ export function GameBoard({ userId }: GameBoardProps) {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [activeBoosterTicket, setActiveBoosterTicket] = useState<string | null>(null); // 使用中のチケットID
 
-  // 目的地選択用のリスト
-  const allDestinations = useMemo(() =>
-    getAllDestinationsWithDistance(player.currentAirport),
-    [player.currentAirport]
-  );
-
   // 空路上のマス位置を計算
   const routePositions = useMemo(() => {
     if (!player.travelProgress) return [];
@@ -184,33 +217,65 @@ export function GameBoard({ userId }: GameBoardProps) {
     );
   }, [player.travelProgress]);
 
-  // 目的地設定モード開始
+  // 目的地設定モード開始（ルーレット表示）
   const startDestinationSelection = useCallback(() => {
-    setGamePhase("setting_destination");
-    setMessage("目的地を選んでください");
-  }, []);
+    // 最終目的地かどうか判定
+    const isLast = visitedDestinations.length >= destinationCount;
+    setIsFinalDestination(isLast);
+    setShowRoulette(true);
+    setGamePhase("roulette");
+    playBGM('roulette');
+    setMessage(isLast ? "🏁 最終目的地を決定！スタート地点に戻ります" : "🎰 目的地ルーレットを回そう！");
+  }, [visitedDestinations.length, destinationCount]);
 
-  // 目的地確定
-  const confirmDestination = useCallback((destinationCode: string) => {
-    const current = getAirportByCode(player.currentAirport);
-    const destination = getAirportByCode(destinationCode);
+  // ルーレットで目的地が選ばれた時（全プレイヤーに同じ目的地を設定）
+  const handleDestinationSelected = useCallback((airport: Airport) => {
+    stopBGM();
+    setShowRoulette(false);
+    setVisitedDestinations(prev => [...prev, airport.code]);
+
+    // 現在のプレイヤー（最初のプレイヤー）の位置から距離を計算
+    const currentPlayer = players[0]; // 最初のプレイヤーの位置を基準に
+    const current = getAirportByCode(currentPlayer.currentAirport);
+    const destination = getAirportByCode(airport.code);
     if (!current || !destination) return;
 
     const distance = calculateDistance(current, destination);
     const totalSpaces = distanceToSpaces(distance);
+    const routeSpaces = generateRouteSpaces(currentPlayer.currentAirport, airport.code, totalSpaces);
 
-    // ルートスペース（クイズマス、メッセージマス含む）を生成
-    const routeSpaces = generateRouteSpaces(player.currentAirport, destinationCode, totalSpaces);
-
-    const travelProgress: TravelProgress = {
-      startAirport: player.currentAirport,
-      finalDestination: destinationCode,
-      totalDistance: distance,
+    // 共通目的地を設定
+    setSharedDestination({
+      airport: airport.code,
       totalSpaces,
-      currentSpace: 0,
-      currentPosition: current.coordinates,
       routeSpaces,
-    };
+    });
+
+    // 全プレイヤーに目的地を設定
+    setPlayers(prevPlayers => prevPlayers.map(p => {
+      const playerCurrent = getAirportByCode(p.currentAirport);
+      if (!playerCurrent) return p;
+
+      const playerDistance = calculateDistance(playerCurrent, destination);
+      const playerTotalSpaces = distanceToSpaces(playerDistance);
+      const playerRouteSpaces = generateRouteSpaces(p.currentAirport, airport.code, playerTotalSpaces);
+
+      const travelProgress: TravelProgress = {
+        startAirport: p.currentAirport,
+        finalDestination: airport.code,
+        totalDistance: playerDistance,
+        totalSpaces: playerTotalSpaces,
+        currentSpace: 0,
+        currentPosition: playerCurrent.coordinates,
+        routeSpaces: playerRouteSpaces,
+      };
+
+      return {
+        ...p,
+        destinationAirport: airport.code,
+        travelProgress,
+      };
+    }));
 
     // ルートスペースの中で特殊マスがあるか確認
     const quizCount = routeSpaces.filter(s => s.type === 'quiz').length;
@@ -225,27 +290,44 @@ export function GameBoard({ userId }: GameBoardProps) {
       specialInfo = ` (${parts.join(', ')})`;
     }
 
-    setPlayer((prev) => ({
-      ...prev,
-      destinationAirport: destinationCode,
-      travelProgress,
-    }));
-
     setSelectedAirport(null);
     setGamePhase("idle");
-    setMessage(`目的地: ${destination.city} (${totalSpaces}マス)${specialInfo} 設定完了！サイコロを振って進みましょう`);
-  }, [player.currentAirport]);
+    setMessage(`🎯 全員の目的地: ${destination.city} (${totalSpaces}マス)${specialInfo} サイコロを振って進もう！`);
+  }, [players]);
 
-  // 目的地キャンセル
+  // 目的地キャンセル（全プレイヤーの目的地をクリア）
   const cancelDestination = useCallback(() => {
-    setPlayer((prev) => ({
-      ...prev,
+    setShowRoulette(false);
+    stopBGM();
+    setSharedDestination(null);
+    setPlayers(prevPlayers => prevPlayers.map(p => ({
+      ...p,
       destinationAirport: undefined,
       travelProgress: undefined,
-    }));
+    })));
     setGamePhase("idle");
     setMessage("目的地をキャンセルしました");
   }, []);
+
+  // 次のプレイヤーへ
+  const nextPlayer = useCallback(() => {
+    if (players.length > 1) {
+      const nextIndex = (currentPlayerIndex + 1) % players.length;
+      setCurrentPlayerIndex(nextIndex);
+      const nextPlayerData = players[nextIndex];
+      const nextPlayerEmoji = gameConfig?.players?.[nextIndex]?.avatarEmoji || '👤';
+
+      // 次のプレイヤーがまだ目的地に到着していない場合
+      if (nextPlayerData.travelProgress && nextPlayerData.travelProgress.currentSpace < nextPlayerData.travelProgress.totalSpaces) {
+        setMessage(`🎮 ${nextPlayerEmoji} ${nextPlayerData.name}さんのターンです！サイコロを振ろう！`);
+        speakText(`${nextPlayerData.name}さんのターンです。サイコロを振ってください`, { rate: 0.95 });
+      } else {
+        setMessage(`🎮 ${nextPlayerEmoji} ${nextPlayerData.name}さんのターンです！`);
+        speakText(`${nextPlayerData.name}さんのターンです`, { rate: 0.95 });
+      }
+    }
+    setGamePhase("idle");
+  }, [players, currentPlayerIndex, gameConfig?.players]);
 
   // パワーブースター・チケットを使用する
   const activateBoosterTicket = useCallback((ticketId: string) => {
@@ -314,7 +396,7 @@ export function GameBoard({ userId }: GameBoardProps) {
         }
       }
     }, 100);
-  }, [player.travelProgress, player.powerBoosterTickets, activeBoosterTicket]);
+  }, [player.travelProgress, player.powerBoosterTickets, activeBoosterTicket, setPlayer]);
 
   // 移動を確定
   const confirmMove = useCallback(() => {
@@ -344,29 +426,59 @@ export function GameBoard({ userId }: GameBoardProps) {
       const isNewAirport = !player.visitedAirports.includes(destination);
       const bonusPoints = isNewAirport ? 100 : 50;
 
-      setPlayer((prev) => ({
-        ...prev,
-        currentAirport: destination,
-        visitedAirports: isNewAirport
-          ? [...prev.visitedAirports, destination]
-          : prev.visitedAirports,
-        destinationAirport: undefined,
-        travelProgress: undefined,
-        turnsPlayed: prev.turnsPlayed + 1,
-        emotionPoints: {
-          ...prev.emotionPoints,
-          total: prev.emotionPoints.total + bonusPoints,
-          joy: prev.emotionPoints.joy + bonusPoints,
-        },
+      // 到着したプレイヤーの状態を更新し、全員の目的地をクリア
+      setPlayers(prevPlayers => prevPlayers.map((p, idx) => {
+        if (idx === currentPlayerIndex) {
+          // 到着したプレイヤー
+          return {
+            ...p,
+            currentAirport: destination,
+            visitedAirports: isNewAirport
+              ? [...p.visitedAirports, destination]
+              : p.visitedAirports,
+            destinationAirport: undefined,
+            travelProgress: undefined,
+            turnsPlayed: p.turnsPlayed + 1,
+            emotionPoints: {
+              ...p.emotionPoints,
+              total: p.emotionPoints.total + bonusPoints,
+              joy: p.emotionPoints.joy + bonusPoints,
+            },
+          };
+        }
+        // 他のプレイヤーも目的地をクリア（次の目的地を設定するため）
+        return {
+          ...p,
+          destinationAirport: undefined,
+          travelProgress: undefined,
+        };
       }));
+
+      // 共通目的地をクリア
+      setSharedDestination(null);
+
+      // 最終目的地に到着した場合はゲーム終了
+      if (isFinalDestination) {
+        playBGM('ending');
+        setMessage(`🏆 ゲームクリア！${destinationAirport?.city}（スタート地点）に戻ってきました！お疲れさまでした！`);
+        setTimeout(() => {
+          setGameCompleted(true);
+          setGamePhase("idle");
+        }, 2000);
+        return;
+      }
 
       const spots = getSpotsByAirport(destination);
       if (spots.length > 0) {
         setGamePhase("visiting");
-        setMessage(`🎉 ${destinationAirport?.city}に到着！目的地ボーナス +${bonusPoints}pt！観光スポットがあります`);
+        setMessage(`🎉 ${destinationAirport?.city}に到着！目的地ボーナス +${bonusPoints}pt！観光スポットを見てから次の目的地へ`);
       } else {
-        setGamePhase("idle");
-        setMessage(`🎉 ${destinationAirport?.city}に到着！目的地ボーナス +${bonusPoints}pt。次の目的地を設定しましょう！`);
+        // 観光スポットなし：次の目的地を設定
+        setMessage(`🎉 ${destinationAirport?.city}に到着！目的地ボーナス +${bonusPoints}pt 次の目的地を決めよう！`);
+        setTimeout(() => {
+          setCurrentPlayerIndex(0); // 最初のプレイヤーに戻す
+          setGamePhase("idle");
+        }, 2000);
       }
     } else {
       // 空路上を移動
@@ -436,13 +548,17 @@ export function GameBoard({ userId }: GameBoardProps) {
           });
         }, 500);
       } else {
-        setGamePhase("idle");
+        // 通常マス：次のプレイヤーへ
         setMessage(`${diceResult}マス進みました！残り${totalSpaces - newSpace}マス`);
+        // 少し遅延してから次のプレイヤーへ
+        setTimeout(() => {
+          nextPlayer();
+        }, 1500);
       }
     }
 
     setDiceResult(null);
-  }, [player.travelProgress, player.visitedAirports, diceResult]);
+  }, [player.travelProgress, player.visitedAirports, diceResult, nextPlayer, currentPlayerIndex, setPlayer, isFinalDestination]);
 
   // 観光スポット訪問
   const visitSpot = useCallback((spotId: string) => {
@@ -464,16 +580,24 @@ export function GameBoard({ userId }: GameBoardProps) {
       }));
       setShowSpotModal(false);
       setCurrentSpot(null);
-      setGamePhase("idle");
-      setMessage(`感動ポイント +${points}pt 獲得！`);
+      setMessage(`感動ポイント +${points}pt 獲得！次の目的地を決めよう！`);
+      // 次の目的地を設定するため、プレイヤー1に戻す
+      setTimeout(() => {
+        setCurrentPlayerIndex(0);
+        setGamePhase("idle");
+      }, 1500);
     },
-    [currentSpot]
+    [currentSpot, setPlayer]
   );
 
-  // スキップして次のターンへ
+  // スキップして次の目的地へ
   const skipVisit = useCallback(() => {
-    setGamePhase("idle");
-    setMessage("次のターンへ");
+    setMessage("次の目的地を決めよう！");
+    // 次の目的地を設定するため、プレイヤー1に戻す
+    setTimeout(() => {
+      setCurrentPlayerIndex(0);
+      setGamePhase("idle");
+    }, 1000);
   }, []);
 
   // クイズの回答を選択
@@ -503,17 +627,18 @@ export function GameBoard({ userId }: GameBoardProps) {
       // 不正解
       setMessage(`❌ 残念...正解は「${currentQuiz.options[currentQuiz.correctAnswer]}」でした。${currentQuiz.explanation}`);
     }
-  }, [currentQuiz, selectedAnswer]);
+  }, [currentQuiz, selectedAnswer, setPlayer]);
 
   // クイズを終了
   const closeQuiz = useCallback(() => {
     setCurrentQuiz(null);
     setSelectedAnswer(null);
     setShowQuizResult(false);
-    setGamePhase("idle");
-  }, []);
+    // 次のプレイヤーへ
+    nextPlayer();
+  }, [nextPlayer]);
 
-  // メッセージイベントをスキップ
+  // メッセージイベントを完了
   const skipMessageEvent = useCallback(() => {
     setPlayer((prev) => ({
       ...prev,
@@ -525,8 +650,11 @@ export function GameBoard({ userId }: GameBoardProps) {
     }));
     setCurrentMessageQuestion(null);
     setMessage("✉️ メッセージマスのボーナス +30pt！");
-    setGamePhase("idle");
-  }, []);
+    // 次のプレイヤーへ
+    setTimeout(() => {
+      nextPlayer();
+    }, 1500);
+  }, [nextPlayer, setPlayer]);
 
   // お笑いイベントを完了
   const completeComedyEvent = useCallback(() => {
@@ -541,8 +669,11 @@ export function GameBoard({ userId }: GameBoardProps) {
     }));
     setCurrentComedyContent(null);
     setMessage("😂 お笑いマスのボーナス +40pt！笑いは健康の源！");
-    setGamePhase("idle");
-  }, []);
+    // 次のプレイヤーへ
+    setTimeout(() => {
+      nextPlayer();
+    }, 1500);
+  }, [nextPlayer, setPlayer]);
 
   // 観光名所を訪問（各空港で1つのみ）
   const handleVisitAttraction = useCallback((
@@ -596,7 +727,7 @@ export function GameBoard({ userId }: GameBoardProps) {
       }));
       setMessage(`🏛️ ${name}を訪問！ +${points}pt 獲得！`);
     }
-  }, [visitedAttractions]);
+  }, [visitedAttractions, setPlayer]);
 
   // ご当地グルメを味わう（各空港で1つのみ）
   const handleVisitFood = useCallback((
@@ -621,7 +752,7 @@ export function GameBoard({ userId }: GameBoardProps) {
       },
     }));
     setMessage(`🍽️ ${name}を味わった！ +${points}pt 獲得！`);
-  }, [visitedFoods]);
+  }, [visitedFoods, setPlayer]);
 
   const currentAirport = getAirportByCode(player.currentAirport);
   const destinationAirportData = player.destinationAirport ? getAirportByCode(player.destinationAirport) : null;
@@ -633,20 +764,275 @@ export function GameBoard({ userId }: GameBoardProps) {
   // 移動中かどうか（空路上にいる）
   const isInFlight = player.travelProgress && player.travelProgress.currentSpace > 0;
 
+  // ゲームフェーズに応じてBGMを自動切り替え
+  useEffect(() => {
+    const phaseToScene: Record<string, BGMScene | null> = {
+      idle: player.travelProgress ? 'dice_wait' : 'title',
+      setting_destination: 'title',
+      roulette: 'roulette',
+      rolling: 'dice_wait',
+      moving: 'flying',
+      arrived: 'arrival',
+      visiting: 'arrival',
+      quiz: 'quiz',
+      message_event: 'message',
+      comedy_event: 'comedy',
+    };
+
+    const scene = phaseToScene[gamePhase];
+    if (scene) {
+      playBGM(scene);
+    }
+
+    // コンポーネントアンマウント時にBGM停止
+    return () => {
+      // ルーレットフェーズ終了時はBGM停止（handleDestinationSelectedで制御）
+    };
+  }, [gamePhase, player.travelProgress]);
+
+  // ゲーム完了時のエンディングBGM
+  useEffect(() => {
+    if (gameCompleted) {
+      playBGM('ending');
+    }
+  }, [gameCompleted]);
+
+  // コンポーネントアンマウント時にBGM停止
+  useEffect(() => {
+    return () => {
+      stopBGM();
+    };
+  }, []);
+
+  // 現在のプレイヤー色を取得
+  const currentPlayerColor = gameConfig?.players?.[currentPlayerIndex]?.color
+    ? PLAYER_COLORS.find(c => c.id === gameConfig.players[currentPlayerIndex].color)?.color || '#3B82F6'
+    : '#3B82F6';
+
   return (
     <div className="space-y-4">
+      {/* ルーレットモーダル */}
+      {showRoulette && (
+        <DestinationRoulette
+          excludeAirports={visitedDestinations}
+          onDestinationSelected={handleDestinationSelected}
+          isFinalDestination={isFinalDestination}
+          startAirport={startAirport}
+        />
+      )}
+
+      {/* ゲーム終了・結果発表画面 */}
+      {gameCompleted && (
+        <div className="fixed inset-0 bg-gradient-to-b from-purple-900/90 to-indigo-900/90 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="w-full max-w-2xl my-8">
+            {/* タイトル */}
+            <div className="text-center mb-6 animate-bounce">
+              <div className="text-7xl mb-2">🎊</div>
+              <h1 className="text-4xl font-bold text-yellow-300 drop-shadow-lg">
+                🏆 結果発表 🏆
+              </h1>
+              <p className="text-white/80 mt-2">世界感動旅行ゲーム クリア！</p>
+            </div>
+
+            {/* ランキング */}
+            <Card className="bg-gradient-to-b from-amber-50 to-yellow-100 border-4 border-yellow-400 shadow-2xl">
+              <CardContent className="p-6">
+                {/* 順位ごとの表示 */}
+                <div className="space-y-4">
+                  {[...players]
+                    .sort((a, b) => b.emotionPoints.total - a.emotionPoints.total)
+                    .map((p, index) => {
+                      const playerConfigIndex = players.findIndex(pl => pl.id === p.id);
+                      const playerEmoji = gameConfig?.players?.[playerConfigIndex]?.avatarEmoji || '👤';
+                      const playerColorId = gameConfig?.players?.[playerConfigIndex]?.color || 'blue';
+                      const playerColor = PLAYER_COLORS.find(c => c.id === playerColorId)?.color || '#3B82F6';
+
+                      const rankStyle = index === 0
+                        ? 'bg-gradient-to-r from-yellow-200 via-yellow-100 to-yellow-200 border-yellow-400 ring-4 ring-yellow-300'
+                        : index === 1
+                        ? 'bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 border-gray-300'
+                        : index === 2
+                        ? 'bg-gradient-to-r from-amber-200 via-amber-100 to-amber-200 border-amber-400'
+                        : 'bg-white border-gray-200';
+
+                      const rankIcon = index === 0 ? '👑' : index === 1 ? '🥈' : index === 2 ? '🥉' : '🎖️';
+                      const rankText = index === 0 ? '優勝！' : `${index + 1}位`;
+
+                      return (
+                        <div
+                          key={p.id}
+                          className={`p-4 rounded-xl border-2 ${rankStyle} ${index === 0 ? 'scale-105 shadow-lg' : ''} transition-all`}
+                        >
+                          <div className="flex items-center gap-4">
+                            {/* 順位 */}
+                            <div className="text-center min-w-[60px]">
+                              <div className="text-3xl">{rankIcon}</div>
+                              <div className={`text-sm font-bold ${index === 0 ? 'text-yellow-600' : 'text-gray-600'}`}>
+                                {rankText}
+                              </div>
+                            </div>
+
+                            {/* プレイヤー情報 */}
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="text-3xl">{playerEmoji}</span>
+                                <span
+                                  className="text-xl font-bold"
+                                  style={{ color: playerColor }}
+                                >
+                                  {p.name}
+                                </span>
+                              </div>
+
+                              {/* 感動ポイント詳細 */}
+                              <div className="grid grid-cols-5 gap-1 text-xs">
+                                <div className="text-center p-1 bg-pink-100 rounded">
+                                  <div>😄</div>
+                                  <div className="font-medium">{p.emotionPoints.fun}</div>
+                                </div>
+                                <div className="text-center p-1 bg-yellow-100 rounded">
+                                  <div>🎉</div>
+                                  <div className="font-medium">{p.emotionPoints.joy}</div>
+                                </div>
+                                <div className="text-center p-1 bg-purple-100 rounded">
+                                  <div>✨</div>
+                                  <div className="font-medium">{p.emotionPoints.beauty}</div>
+                                </div>
+                                <div className="text-center p-1 bg-blue-100 rounded">
+                                  <div>🌟</div>
+                                  <div className="font-medium">{p.emotionPoints.wonder}</div>
+                                </div>
+                                <div className="text-center p-1 bg-green-100 rounded">
+                                  <div>💭</div>
+                                  <div className="font-medium">{p.emotionPoints.reflection}</div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* 合計ポイント */}
+                            <div className="text-right">
+                              <div className={`text-3xl font-bold ${index === 0 ? 'text-yellow-600' : 'text-amber-700'}`}>
+                                {p.emotionPoints.total}
+                              </div>
+                              <div className="text-sm text-gray-500">感動pt</div>
+                            </div>
+                          </div>
+
+                          {/* 訪問空港数 */}
+                          <div className="mt-2 pt-2 border-t border-gray-200 flex justify-between text-sm text-gray-600">
+                            <span>✈️ 訪問空港: {p.visitedAirports.length}か所</span>
+                            <span>🎲 ターン数: {p.turnsPlayed}回</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+
+                {/* 旅の思い出 */}
+                <div className="mt-6 p-4 bg-gradient-to-r from-sky-100 to-blue-100 rounded-xl border border-sky-300">
+                  <h3 className="font-bold text-sky-800 mb-2 flex items-center gap-2">
+                    <span>🌍</span> 旅の思い出
+                  </h3>
+                  <div className="text-sm text-sky-700 space-y-1">
+                    <p>📍 訪問した目的地: {visitedDestinations.length - 1}か所</p>
+                    <p>🎯 スタート地点: {getAirportByCode(startAirport)?.city}</p>
+                    <p>👨‍👩‍👧‍👦 参加人数: {players.length}人</p>
+                  </div>
+                </div>
+
+                {/* ボタン */}
+                <div className="mt-6 flex gap-3">
+                  <Button
+                    onClick={() => window.location.reload()}
+                    className="flex-1 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-lg py-6"
+                  >
+                    🔄 もう一度遊ぶ
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => window.location.href = '/dashboard'}
+                    className="flex-1 border-2 border-gray-300 text-lg py-6"
+                  >
+                    🏠 ホームに戻る
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* お祝いメッセージ */}
+            <div className="text-center mt-6 text-white/90">
+              <p className="text-lg">🎉 みんなで楽しい旅ができました！ 🎉</p>
+              <p className="text-sm mt-1 text-white/70">また一緒に世界を旅しましょう！</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* プレイヤー一覧（マルチプレイヤー時） */}
+      {players.length > 1 && (
+        <Card className="border-2" style={{ borderColor: currentPlayerColor }}>
+          <CardContent className="p-3">
+            <div className="flex items-center gap-3 overflow-x-auto">
+              {players.map((p, index) => {
+                const isCurrentPlayer = index === currentPlayerIndex;
+                const playerColorId = gameConfig?.players?.[index]?.color || 'blue';
+                const playerColor = PLAYER_COLORS.find(c => c.id === playerColorId)?.color || '#3B82F6';
+                const playerEmoji = gameConfig?.players?.[index]?.avatarEmoji || '👤';
+
+                return (
+                  <div
+                    key={p.id}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all ${
+                      isCurrentPlayer
+                        ? 'ring-2 ring-offset-2 scale-105'
+                        : 'opacity-60'
+                    }`}
+                    style={{
+                      backgroundColor: `${playerColor}20`,
+                      borderColor: playerColor,
+                      ...(isCurrentPlayer ? { ringColor: playerColor } : {})
+                    }}
+                  >
+                    <span className="text-2xl">{playerEmoji}</span>
+                    <div>
+                      <p className="font-bold text-sm" style={{ color: playerColor }}>{p.name}</p>
+                      <p className="text-xs text-gray-600">{p.emotionPoints.total}pt</p>
+                    </div>
+                    {isCurrentPlayer && <span className="text-xs">🎮</span>}
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* ヘッダー */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center justify-between">
             <span>✈️ 感動・世界旅ゲーム</span>
-            <Badge variant="outline" className="text-lg">
-              ターン {player.turnsPlayed + 1}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary">
+                目的地 {visitedDestinations.length - 1}/{destinationCount}
+              </Badge>
+              <Badge variant="outline" className="text-lg">
+                ターン {player.turnsPlayed + 1}
+              </Badge>
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap items-center justify-between gap-4">
+            {/* 現在のプレイヤー（単独プレイ時も表示） */}
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ backgroundColor: `${currentPlayerColor}20` }}>
+              <span className="text-2xl">{gameConfig?.players?.[currentPlayerIndex]?.avatarEmoji || '👤'}</span>
+              <div>
+                <p className="text-sm text-gray-500">現在のプレイヤー</p>
+                <p className="font-bold" style={{ color: currentPlayerColor }}>{player.name}</p>
+              </div>
+            </div>
+
             {/* 現在地 */}
             <div className="flex items-center gap-2">
               <span className="text-2xl">{isInFlight ? "✈️" : currentAirport?.icon}</span>
@@ -754,72 +1140,6 @@ export function GameBoard({ userId }: GameBoardProps) {
             <CardTitle>🎮 アクション</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* 目的地設定モード */}
-            {gamePhase === "setting_destination" && (
-              <div className="space-y-3">
-                <p className="font-semibold text-sky-700">🗺️ 目的地を選択</p>
-                <p className="text-sm text-gray-600">
-                  地図上の空港をクリックするか、下のリストから選んでください
-                </p>
-
-                {/* 選択中の空港 */}
-                {selectedAirport && (
-                  <div className="p-3 bg-sky-50 rounded-lg border-2 border-sky-300">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-2xl">{getAirportByCode(selectedAirport)?.icon}</span>
-                        <div>
-                          <p className="font-bold">{getAirportByCode(selectedAirport)?.city}</p>
-                          <p className="text-sm text-gray-500">
-                            {(() => {
-                              const dest = allDestinations.find(d => d.code === selectedAirport);
-                              return dest ? `${dest.distance.toLocaleString()}km / ${dest.spaces}マス` : "";
-                            })()}
-                          </p>
-                        </div>
-                      </div>
-                      <Button onClick={() => confirmDestination(selectedAirport)} className="bg-sky-600 hover:bg-sky-700">
-                        決定
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {/* 人気の目的地リスト */}
-                <div className="max-h-60 overflow-y-auto space-y-1">
-                  {allDestinations.slice(0, 15).map(({ code, distance, spaces }) => {
-                    const airport = getAirportByCode(code);
-                    if (!airport) return null;
-                    const isSelected = code === selectedAirport;
-                    return (
-                      <button
-                        key={code}
-                        onClick={() => setSelectedAirport(code)}
-                        className={`w-full p-2 rounded-lg text-left flex items-center justify-between transition-colors ${
-                          isSelected ? "bg-sky-100 border-2 border-sky-400" : "bg-gray-50 hover:bg-gray-100"
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span>{airport.icon}</span>
-                          <span className="font-medium">{airport.city}</span>
-                        </div>
-                        <div className="text-right text-sm">
-                          <span className="text-gray-500">{distance.toLocaleString()}km</span>
-                          <Badge variant="secondary" className="ml-2">
-                            {spaces}マス
-                          </Badge>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <Button variant="ghost" className="w-full" onClick={() => setGamePhase("idle")}>
-                  キャンセル
-                </Button>
-              </div>
-            )}
-
             {/* 通常の待機状態 */}
             {gamePhase === "idle" && (
               <div className="space-y-3">
@@ -957,16 +1277,34 @@ export function GameBoard({ userId }: GameBoardProps) {
                   </>
                 ) : (
                   <>
-                    <Button
-                      onClick={startDestinationSelection}
-                      size="lg"
-                      className="w-full text-xl py-6"
-                    >
-                      🗺️ 目的地を設定する
-                    </Button>
-                    <p className="text-sm text-gray-500 text-center">
-                      目的地を選んでサイコロを振り、空路を進んで目指しましょう！
-                    </p>
+                    {/* ルーレットボタンはプレイヤー1のみ、かつ共通目的地がない時のみ */}
+                    {currentPlayerIndex === 0 && !sharedDestination ? (
+                      <>
+                        <Button
+                          onClick={startDestinationSelection}
+                          size="lg"
+                          className="w-full text-xl py-6 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                        >
+                          🎰 目的地ルーレットを回す！
+                        </Button>
+                        <p className="text-sm text-gray-500 text-center">
+                          ルーレットで次の目的地を決めよう！
+                          {visitedDestinations.length >= destinationCount && (
+                            <span className="block text-amber-600 font-medium mt-1">
+                              🏁 次が最終目的地！スタート地点に戻ります
+                            </span>
+                          )}
+                        </p>
+                      </>
+                    ) : (
+                      <div className="p-4 bg-gray-100 rounded-lg text-center">
+                        <p className="text-gray-600">
+                          {sharedDestination
+                            ? `🎯 目的地: ${getAirportByCode(sharedDestination.airport)?.city} に向かおう！`
+                            : "プレイヤー1が目的地を決めるのを待っています..."}
+                        </p>
+                      </div>
+                    )}
                   </>
                 )}
               </div>

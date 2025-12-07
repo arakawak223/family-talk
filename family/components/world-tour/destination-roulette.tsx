@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Airport } from '@/lib/types/world-tour';
-import { AIRPORTS } from '@/lib/data/world-tour-data';
+import { AIRPORTS } from '@/lib/data/airports';
 import { playBGM, stopBGM } from '@/lib/audio/bgm-manager';
 import { speakText } from '@/lib/speech';
 

@@ -1,7 +1,10 @@
 // ======================================
 // BGM管理システム
 // 桃太郎電鉄風の楽しいBGM切り替えシステム
+// mp3がない場合はトーンジェネレーターにフォールバック
 // ======================================
+
+import { playTone, stopTone, setToneVolume } from './tone-generator';
 
 export type BGMScene =
   | 'title'           // タイトル/メニュー
@@ -139,6 +142,7 @@ class BGMManager {
   private isMuted: boolean = false;
   private isEnabled: boolean = true;
   private fadeInterval: NodeJS.Timeout | null = null;
+  private useToneGenerator: boolean = false; // mp3が読み込めない場合のフォールバック
 
   constructor() {
     // ブラウザ環境チェック
@@ -159,8 +163,9 @@ class BGMManager {
     if (!this.isEnabled || typeof window === 'undefined') return;
 
     // 同じシーンなら何もしない
-    if (this.currentScene === scene && this.currentAudio && !this.currentAudio.paused) {
-      return;
+    if (this.currentScene === scene) {
+      if (this.useToneGenerator) return;
+      if (this.currentAudio && !this.currentAudio.paused) return;
     }
 
     const track = BGM_TRACKS.find(t => t.scene === scene);
@@ -172,15 +177,27 @@ class BGMManager {
     // 現在のBGMをフェードアウト
     await this.fadeOut();
 
+    // トーンジェネレーターモードの場合
+    if (this.useToneGenerator) {
+      this.currentScene = scene;
+      setToneVolume(this.masterVolume * (this.isMuted ? 0 : 1));
+      playTone(scene);
+      return;
+    }
+
     // 新しいオーディオを作成
     this.currentAudio = new Audio(track.src);
     this.currentAudio.loop = track.loop;
     this.currentAudio.volume = 0; // フェードイン用に0から開始
     this.currentScene = scene;
 
-    // エラーハンドリング
+    // エラーハンドリング - mp3が読み込めない場合はトーンジェネレーターにフォールバック
     this.currentAudio.onerror = () => {
-      console.warn(`Failed to load BGM: ${track.src}`);
+      console.warn(`Failed to load BGM: ${track.src}, falling back to tone generator`);
+      this.useToneGenerator = true;
+      this.currentAudio = null;
+      setToneVolume(this.masterVolume * (this.isMuted ? 0 : 1));
+      playTone(scene);
     };
 
     // 再生開始
@@ -190,7 +207,11 @@ class BGMManager {
       this.fadeIn(track.volume * this.masterVolume * (this.isMuted ? 0 : 1), track.fadeInDuration || 500);
     } catch {
       // ユーザーインタラクション前の自動再生ブロック対策
-      console.warn('BGM autoplay blocked. Will play on user interaction.');
+      console.warn('BGM autoplay blocked, trying tone generator');
+      this.useToneGenerator = true;
+      this.currentAudio = null;
+      setToneVolume(this.masterVolume * (this.isMuted ? 0 : 1));
+      playTone(scene);
     }
   }
 
@@ -221,6 +242,14 @@ class BGMManager {
   // フェードアウト
   private fadeOut(): Promise<void> {
     return new Promise((resolve) => {
+      // トーンジェネレーターモードの場合
+      if (this.useToneGenerator) {
+        stopTone();
+        this.currentScene = null;
+        resolve();
+        return;
+      }
+
       if (!this.currentAudio || this.currentAudio.paused) {
         resolve();
         return;
@@ -279,6 +308,13 @@ class BGMManager {
     if (typeof window !== 'undefined') {
       localStorage.setItem('bgm_volume', this.masterVolume.toString());
     }
+
+    // トーンジェネレーターの場合
+    if (this.useToneGenerator) {
+      setToneVolume(this.masterVolume * (this.isMuted ? 0 : 1));
+      return;
+    }
+
     if (this.currentAudio && !this.isMuted) {
       const track = BGM_TRACKS.find(t => t.scene === this.currentScene);
       if (track) {
@@ -298,6 +334,13 @@ class BGMManager {
     if (typeof window !== 'undefined') {
       localStorage.setItem('bgm_muted', this.isMuted.toString());
     }
+
+    // トーンジェネレーターの場合
+    if (this.useToneGenerator) {
+      setToneVolume(this.isMuted ? 0 : this.masterVolume);
+      return this.isMuted;
+    }
+
     if (this.currentAudio) {
       const track = BGM_TRACKS.find(t => t.scene === this.currentScene);
       if (track) {
@@ -335,7 +378,15 @@ class BGMManager {
 
   // 再生中かどうか
   isPlaying(): boolean {
+    if (this.useToneGenerator) {
+      return this.currentScene !== null;
+    }
     return this.currentAudio !== null && !this.currentAudio.paused;
+  }
+
+  // トーンジェネレーターモードかどうか
+  isToneGeneratorMode(): boolean {
+    return this.useToneGenerator;
   }
 }
 

@@ -11,7 +11,7 @@ import {
   PLAYER_AVATARS,
   createPlayer
 } from '@/lib/game/player-manager';
-import { AIRPORTS } from '@/lib/data/world-tour-data';
+import { AIRPORTS } from '@/lib/data/airports';
 import { Users, Plus, Minus, Plane, Play, Shuffle } from 'lucide-react';
 
 interface PlayerSetup {
