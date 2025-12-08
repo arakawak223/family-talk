@@ -4,7 +4,7 @@
 // mp3がない場合はトーンジェネレーターにフォールバック
 // ======================================
 
-import { playTone, stopTone, setToneVolume } from './tone-generator';
+import { playTone, stopTone, setToneVolume, startEngineSound, stopEngineSound } from './tone-generator';
 
 export type BGMScene =
   | 'title'           // タイトル/メニュー
@@ -174,14 +174,18 @@ class BGMManager {
       return;
     }
 
-    // 現在のBGMをフェードアウト
-    await this.fadeOut();
+    // 現在のBGMをフェードアウト（次が飛行中シーンならエンジン音を維持）
+    await this.fadeOut(scene === 'flying');
 
     // トーンジェネレーターモードの場合
     if (this.useToneGenerator) {
       this.currentScene = scene;
       setToneVolume(this.masterVolume * (this.isMuted ? 0 : 1));
       playTone(scene);
+      // 飛行中シーンの場合はエンジン音も追加（トーンジェネレーターのplayでも呼ばれるが念のため）
+      if (scene === 'flying') {
+        startEngineSound();
+      }
       return;
     }
 
@@ -205,6 +209,11 @@ class BGMManager {
       await this.currentAudio.play();
       // フェードイン
       this.fadeIn(track.volume * this.masterVolume * (this.isMuted ? 0 : 1), track.fadeInDuration || 500);
+
+      // 飛行中シーンの場合はエンジン音も追加
+      if (scene === 'flying') {
+        startEngineSound();
+      }
     } catch {
       // ユーザーインタラクション前の自動再生ブロック対策
       console.warn('BGM autoplay blocked, trying tone generator');
@@ -239,12 +248,17 @@ class BGMManager {
     }, 50);
   }
 
-  // フェードアウト
-  private fadeOut(): Promise<void> {
+  // フェードアウト（keepEngineがtrueならエンジン音を維持）
+  private fadeOut(keepEngine: boolean = false): Promise<void> {
     return new Promise((resolve) => {
+      // エンジン音を停止（keepEngineがfalseの場合のみ）
+      if (!keepEngine) {
+        stopEngineSound();
+      }
+
       // トーンジェネレーターモードの場合
       if (this.useToneGenerator) {
-        stopTone();
+        stopTone(keepEngine);
         this.currentScene = null;
         resolve();
         return;

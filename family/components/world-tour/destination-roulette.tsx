@@ -1,12 +1,11 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Airport } from '@/lib/types/world-tour';
 import { AIRPORTS } from '@/lib/data/airports';
 import { playBGM, stopBGM } from '@/lib/audio/bgm-manager';
 import { speakText } from '@/lib/speech';
+import { Globe, Plane, MapPin, Sparkles } from 'lucide-react';
 
 interface DestinationRouletteProps {
   excludeAirports: string[];  // 除外する空港コード（スタート地点、既訪問地）
@@ -126,97 +125,163 @@ export function DestinationRoulette({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-lg bg-gradient-to-b from-purple-900 to-indigo-900 text-white border-2 border-yellow-400">
-        <CardContent className="p-6">
-          {/* タイトル */}
-          <div className="text-center mb-6">
-            <h2 className="text-2xl font-bold mb-2">
-              {isFinalDestination ? '🏁 最終目的地 🏁' : '🎰 目的地ルーレット 🎰'}
+    <div className="glass-card p-6 md:p-8 relative slide-in-up">
+      {/* 背景のパーティクル */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-2xl">
+        {[...Array(10)].map((_, i) => (
+          <div
+            key={i}
+            className="absolute animate-pulse"
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+              animationDelay: `${Math.random() * 2}s`,
+              opacity: 0.3
+            }}
+          >
+            ✨
+          </div>
+        ))}
+      </div>
+
+      <div className="relative z-10">
+        {/* 装飾的な光 */}
+        <div className="absolute -top-10 -left-10 w-40 h-40 bg-yellow-400/20 rounded-full blur-3xl" />
+        <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-purple-500/20 rounded-full blur-3xl" />
+
+        {/* タイトル */}
+        <div className="text-center mb-8 relative">
+          <div className="flex items-center justify-center gap-3 mb-3">
+            <Globe className="h-8 w-8 text-yellow-400 animate-pulse" />
+            <h2 className="text-3xl font-bold text-white title-glow">
+              {isFinalDestination ? '最終目的地' : '目的地ルーレット'}
             </h2>
-            <p className="text-purple-200 text-sm">
-              {isFinalDestination
-                ? 'スタート地点に戻ります！'
-                : `残り ${availableAirports.length} か所から選ばれます`}
-            </p>
+            <Plane className="h-8 w-8 text-yellow-400 airplane-flying" />
           </div>
+          <p className="text-white/60 text-sm">
+            {isFinalDestination
+              ? '🏁 スタート地点に戻ってゴール！'
+              : `✨ ${availableAirports.length}都市から運命の目的地が選ばれます`}
+          </p>
+        </div>
 
-          {/* ルーレット表示 */}
-          <div className={`
-            bg-black/40 rounded-xl p-8 mb-6 text-center
-            border-4 ${isSpinning ? 'border-yellow-400 animate-pulse' : 'border-purple-500'}
-          `}>
-            {currentAirport ? (
-              <div className={`transition-all ${isSpinning ? 'animate-bounce' : ''}`}>
-                <div className="text-6xl mb-4">{currentAirport.icon}</div>
-                <div className="text-3xl font-bold mb-2">{currentAirport.city}</div>
-                <div className="text-xl text-purple-200">{currentAirport.country}</div>
-                <div className="text-sm text-purple-300 mt-2">({currentAirport.code})</div>
-              </div>
-            ) : (
-              <div className="text-6xl animate-pulse">❓</div>
-            )}
-          </div>
-
-          {/* スロット風の演出（サイドに小さく表示） */}
+        {/* メインルーレット表示 */}
+        <div className={`
+          relative rounded-2xl p-8 mb-8 text-center overflow-hidden
+          ${isSpinning
+            ? 'bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border-2 border-yellow-400'
+            : showResult
+              ? 'bg-gradient-to-br from-green-500/20 to-emerald-500/20 border-2 border-green-400'
+              : 'bg-white/5 border-2 border-white/20'}
+          transition-all duration-500
+        `}>
+          {/* 回転中のオーバーレイエフェクト */}
           {isSpinning && (
-            <div className="flex justify-center gap-2 mb-6">
-              {[0, 1, 2].map((i) => (
-                <div
-                  key={i}
-                  className="w-12 h-12 bg-black/40 rounded-lg flex items-center justify-center text-2xl animate-spin"
-                  style={{ animationDuration: `${0.5 + i * 0.2}s` }}
-                >
-                  {AIRPORTS[Math.floor(Math.random() * AIRPORTS.length)]?.icon}
-                </div>
-              ))}
-            </div>
+            <div className="absolute inset-0 bg-gradient-to-t from-yellow-400/10 to-transparent animate-pulse" />
           )}
 
-          {/* 結果表示 */}
-          {showResult && selectedAirport && (
-            <div className="bg-yellow-500/20 border border-yellow-400 rounded-lg p-4 mb-6 text-center">
-              <div className="text-yellow-400 font-bold text-lg mb-1">
-                {isFinalDestination ? '🏁 ゴール地点決定！' : '✨ 次の目的地が決定！'}
+          {currentAirport ? (
+            <div className={`relative z-10 ${isSpinning ? 'roulette-spinning' : showResult ? 'arrival-celebration' : ''}`}>
+              {/* アイコン */}
+              <div className={`text-8xl mb-4 ${isSpinning ? 'animate-bounce' : ''}`}>
+                {currentAirport.icon}
               </div>
-              <div className="text-white">
-                <span className="text-2xl mr-2">{selectedAirport.icon}</span>
-                <span className="font-bold">{selectedAirport.city}</span>
-                （{selectedAirport.country}）
+
+              {/* 都市名 */}
+              <div className={`text-4xl font-bold mb-2 ${showResult ? 'text-yellow-400 title-glow' : 'text-white'}`}>
+                {currentAirport.city}
+              </div>
+
+              {/* 国名 */}
+              <div className="text-xl text-white/80 mb-2">
+                {currentAirport.country}
+              </div>
+
+              {/* 空港コード */}
+              <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-white/10 text-white/60 text-sm">
+                <MapPin className="h-4 w-4" />
+                {currentAirport.code}
               </div>
             </div>
+          ) : (
+            <div className="text-center py-8">
+              <div className="text-8xl mb-4 animate-pulse">🌍</div>
+              <p className="text-white/60">ルーレットを回して目的地を決めよう！</p>
+            </div>
           )}
+        </div>
 
-          {/* ボタン */}
-          <div className="flex gap-3">
-            {!showResult ? (
-              <Button
-                className="flex-1 h-14 text-lg font-bold bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600"
-                onClick={spin}
-                disabled={isSpinning}
+        {/* スロット風サブディスプレイ */}
+        {isSpinning && (
+          <div className="flex justify-center gap-3 mb-8">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <div
+                key={i}
+                className="w-12 h-12 glass-card-light rounded-xl flex items-center justify-center text-2xl"
+                style={{
+                  animation: `roulette-spin ${0.3 + i * 0.1}s linear infinite`
+                }}
               >
-                {isSpinning ? (
-                  <>
-                    <span className="animate-spin mr-2">🎰</span>
-                    回転中...
-                  </>
-                ) : (
-                  <>
-                    🎲 ルーレットを回す！
-                  </>
-                )}
-              </Button>
-            ) : (
-              <Button
-                className="flex-1 h-14 text-lg font-bold bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
-                onClick={handleConfirm}
-              >
-                ✈️ {selectedAirport?.city}へ出発！
-              </Button>
-            )}
+                {AIRPORTS[Math.floor(Math.random() * AIRPORTS.length)]?.icon}
+              </div>
+            ))}
           </div>
-        </CardContent>
-      </Card>
+        )}
+
+        {/* 結果バナー */}
+        {showResult && selectedAirport && (
+          <div className="message-banner mb-8 text-center fade-in">
+            <div className="flex items-center justify-center gap-2 text-yellow-300 font-bold text-lg">
+              <Sparkles className="h-5 w-5" />
+              {isFinalDestination ? 'ゴール地点決定！' : '次の目的地が決定！'}
+              <Sparkles className="h-5 w-5" />
+            </div>
+          </div>
+        )}
+
+        {/* アクションボタン */}
+        <div className="relative">
+          {!showResult ? (
+            <button
+              className={`btn-travel w-full h-16 text-xl font-bold flex items-center justify-center gap-3 ${isSpinning ? 'opacity-80' : ''}`}
+              onClick={spin}
+              disabled={isSpinning}
+            >
+              {isSpinning ? (
+                <>
+                  <span className="animate-spin text-2xl">🎰</span>
+                  <span>回転中...</span>
+                </>
+              ) : (
+                <>
+                  <span className="text-2xl">🎲</span>
+                  <span>ルーレットを回す！</span>
+                </>
+              )}
+            </button>
+          ) : (
+            <button
+              className="w-full h-16 text-xl font-bold flex items-center justify-center gap-3 rounded-full
+                bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600
+                text-white shadow-lg shadow-green-500/30 transition-all hover:scale-105"
+              onClick={handleConfirm}
+            >
+              <Plane className="h-6 w-6 airplane-flying" />
+              <span>{selectedAirport?.city}へ出発！</span>
+              <span className="text-2xl">✈️</span>
+            </button>
+          )}
+        </div>
+
+        {/* 残り都市数 */}
+        {!isFinalDestination && (
+          <p className="text-center text-white/40 text-sm mt-4">
+            🌍 まだ行っていない都市: {availableAirports.length}か所
+          </p>
+        )}
+      </div>
     </div>
   );
 }
+
+export type { DestinationRouletteProps };

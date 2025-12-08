@@ -294,11 +294,35 @@ export const QUIZ_POOL: QuizEventData[] = [
 ];
 
 /**
- * ランダムにクイズを1つ選択
+ * 選択肢をシャッフルして正解位置をランダム化する
+ */
+function shuffleOptions(quiz: QuizEventData): QuizEventData {
+  // 正解の選択肢を保存
+  const correctOption = quiz.options[quiz.correctAnswer];
+
+  // 選択肢をシャッフル
+  const shuffledOptions = [...quiz.options];
+  for (let i = shuffledOptions.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffledOptions[i], shuffledOptions[j]] = [shuffledOptions[j], shuffledOptions[i]];
+  }
+
+  // 新しい正解位置を見つける
+  const newCorrectAnswer = shuffledOptions.indexOf(correctOption);
+
+  return {
+    ...quiz,
+    options: shuffledOptions,
+    correctAnswer: newCorrectAnswer,
+  };
+}
+
+/**
+ * ランダムにクイズを1つ選択（正解位置もランダム化）
  */
 export function getRandomQuiz(): QuizEventData {
   const randomIndex = Math.floor(Math.random() * QUIZ_POOL.length);
-  return QUIZ_POOL[randomIndex];
+  return shuffleOptions(QUIZ_POOL[randomIndex]);
 }
 
 /**

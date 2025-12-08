@@ -167,3 +167,172 @@ export function isSpeaking(): boolean {
   }
   return window.speechSynthesis.speaking;
 }
+
+/**
+ * 感情のタイプ
+ */
+export type EmotionType = 'neutral' | 'happy' | 'excited' | 'warm' | 'funny' | 'question';
+
+/**
+ * 感情タイプに応じた音声パラメータを取得
+ */
+function getEmotionParams(emotion: EmotionType): { rate: number; pitch: number } {
+  switch (emotion) {
+    case 'happy':
+      return { rate: 1.05, pitch: 1.15 };
+    case 'excited':
+      return { rate: 1.1, pitch: 1.2 };
+    case 'warm':
+      return { rate: 0.9, pitch: 1.05 };
+    case 'funny':
+      return { rate: 0.95, pitch: 1.1 };
+    case 'question':
+      return { rate: 0.95, pitch: 1.1 };
+    case 'neutral':
+    default:
+      return { rate: 1.0, pitch: 1.0 };
+  }
+}
+
+/**
+ * テキストを分析して感情を推定
+ */
+function analyzeEmotion(text: string): EmotionType {
+  // 質問系
+  if (text.includes('？') || text.includes('?') || text.includes('ですか') || text.includes('かな')) {
+    return 'question';
+  }
+  // お笑い系
+  if (text.includes('なんでやねん') || text.includes('ボケ') || text.includes('ツッコミ') ||
+      text.includes('笑') || text.includes('ワロタ') || text.includes('草') ||
+      text.includes('ギャグ') || text.includes('！！')) {
+    return 'funny';
+  }
+  // 興奮系
+  if (text.includes('！！') || text.includes('すごい') || text.includes('やったー') ||
+      text.includes('おめでとう') || text.includes('最高')) {
+    return 'excited';
+  }
+  // 幸せ・ポジティブ系
+  if (text.includes('ありがとう') || text.includes('嬉しい') || text.includes('楽しい') ||
+      text.includes('素敵') || text.includes('大好き') || text.includes('！')) {
+    return 'happy';
+  }
+  // 温かい系（メッセージマス向け）
+  if (text.includes('いつも') || text.includes('あなた') || text.includes('一緒に') ||
+      text.includes('感謝') || text.includes('大切') || text.includes('宝物')) {
+    return 'warm';
+  }
+  return 'neutral';
+}
+
+/**
+ * テキストを句読点で分割し、それぞれに適切な間を入れる
+ */
+function splitIntoSegments(text: string): { text: string; pauseAfter: number }[] {
+  // 句読点で分割
+  const segments: { text: string; pauseAfter: number }[] = [];
+  let current = '';
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    current += char;
+
+    if (char === '。' || char === '！' || char === '?' || char === '？') {
+      segments.push({ text: current.trim(), pauseAfter: 400 });
+      current = '';
+    } else if (char === '、' || char === ',' || char === '…') {
+      segments.push({ text: current.trim(), pauseAfter: 200 });
+      current = '';
+    }
+  }
+
+  if (current.trim()) {
+    segments.push({ text: current.trim(), pauseAfter: 0 });
+  }
+
+  return segments.filter(s => s.text.length > 0);
+}
+
+/**
+ * 感情を込めてテキストを読み上げる（自動で感情を推定）
+ */
+export async function speakWithEmotion(
+  text: string,
+  options: {
+    emotion?: EmotionType;  // 手動で感情を指定（省略時は自動推定）
+    onStart?: () => void;
+    onEnd?: () => void;
+    onError?: (error: Error) => void;
+  } = {}
+): Promise<void> {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+    console.warn('Speech synthesis not supported');
+    options.onError?.(new Error('Speech synthesis not supported'));
+    return;
+  }
+
+  const cleanText = removeEmojis(text);
+  if (!cleanText) {
+    options.onEnd?.();
+    return;
+  }
+
+  // 既存の読み上げをキャンセル
+  window.speechSynthesis.cancel();
+
+  // 音声が読み込まれるまで待機
+  await waitForVoices();
+
+  // 感情を推定または指定された感情を使用
+  const emotion = options.emotion || analyzeEmotion(cleanText);
+  const emotionParams = getEmotionParams(emotion);
+
+  // テキストを分割
+  const segments = splitIntoSegments(cleanText);
+
+  options.onStart?.();
+
+  // セグメントを順番に読み上げ
+  for (let i = 0; i < segments.length; i++) {
+    const segment = segments[i];
+
+    await new Promise<void>((resolve) => {
+      const utterance = new SpeechSynthesisUtterance(removeEmojis(segment.text));
+      utterance.lang = 'ja-JP';
+
+      // 感情パラメータを適用（セグメントごとに微妙に変化させて自然に）
+      const variation = (Math.random() - 0.5) * 0.05; // -0.025 ~ +0.025
+      utterance.rate = emotionParams.rate + variation;
+      utterance.pitch = emotionParams.pitch + variation;
+      utterance.volume = 1.0;
+
+      // 高品質な日本語音声を選択
+      const voice = getJapaneseVoice();
+      if (voice) {
+        utterance.voice = voice;
+      }
+
+      utterance.onend = () => {
+        // セグメント後の間
+        if (segment.pauseAfter > 0 && i < segments.length - 1) {
+          setTimeout(resolve, segment.pauseAfter);
+        } else {
+          resolve();
+        }
+      };
+
+      utterance.onerror = (event) => {
+        if (event.error === 'interrupted' || event.error === 'canceled') {
+          resolve();
+          return;
+        }
+        resolve();
+      };
+
+      window.speechSynthesis.speak(utterance);
+    });
+  }
+
+  options.onEnd?.();
+}

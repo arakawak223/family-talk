@@ -66,3 +66,411 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ======================================
+   世界旅行ゲーム - 美しいUI/UXスタイル
+   ====================================== */
+
+/* 世界旅行テーマのグラデーション背景 */
+.world-tour-bg {
+  background: linear-gradient(135deg,
+    #0c1445 0%,
+    #1a237e 25%,
+    #283593 50%,
+    #1565c0 75%,
+    #0288d1 100%);
+  min-height: 100vh;
+  position: relative;
+  overflow: hidden;
+}
+
+/* 空の背景アニメーション（雲が流れる） */
+.world-tour-bg::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    radial-gradient(ellipse 200px 100px at 10% 20%, rgba(255,255,255,0.1) 0%, transparent 50%),
+    radial-gradient(ellipse 300px 150px at 80% 30%, rgba(255,255,255,0.08) 0%, transparent 50%),
+    radial-gradient(ellipse 250px 120px at 30% 70%, rgba(255,255,255,0.06) 0%, transparent 50%),
+    radial-gradient(ellipse 180px 90px at 70% 80%, rgba(255,255,255,0.1) 0%, transparent 50%);
+  animation: clouds-drift 60s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes clouds-drift {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(100px); }
+}
+
+/* 星空エフェクト */
+.world-tour-bg::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40%;
+  background:
+    radial-gradient(2px 2px at 20% 10%, white 0%, transparent 100%),
+    radial-gradient(2px 2px at 40% 15%, rgba(255,255,255,0.8) 0%, transparent 100%),
+    radial-gradient(1px 1px at 60% 8%, white 0%, transparent 100%),
+    radial-gradient(2px 2px at 80% 20%, rgba(255,255,255,0.6) 0%, transparent 100%),
+    radial-gradient(1px 1px at 15% 25%, white 0%, transparent 100%),
+    radial-gradient(2px 2px at 55% 5%, rgba(255,255,255,0.7) 0%, transparent 100%),
+    radial-gradient(1px 1px at 75% 12%, white 0%, transparent 100%),
+    radial-gradient(2px 2px at 90% 25%, rgba(255,255,255,0.5) 0%, transparent 100%);
+  animation: stars-twinkle 3s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+@keyframes stars-twinkle {
+  0% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+/* ガラスモーフィズムカード */
+.glass-card {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.glass-card-light {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+/* プレイヤーカード */
+.player-card {
+  background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  transition: all 0.3s ease;
+}
+
+.player-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.player-card.active {
+  border: 2px solid rgba(255, 215, 0, 0.8);
+  box-shadow:
+    0 0 20px rgba(255, 215, 0, 0.3),
+    0 8px 24px rgba(0, 0, 0, 0.3);
+  animation: active-pulse 2s ease-in-out infinite;
+}
+
+@keyframes active-pulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.3); }
+  50% { box-shadow: 0 0 30px rgba(255, 215, 0, 0.5), 0 8px 24px rgba(0, 0, 0, 0.3); }
+}
+
+/* 美しいボタン */
+.btn-travel {
+  background: linear-gradient(135deg, #ffd700 0%, #ffb700 50%, #ff9500 100%);
+  color: #1a1a2e;
+  font-weight: 700;
+  padding: 12px 32px;
+  border-radius: 50px;
+  border: none;
+  box-shadow:
+    0 4px 15px rgba(255, 183, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.btn-travel:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 6px 20px rgba(255, 183, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.btn-travel:active {
+  transform: translateY(0);
+}
+
+.btn-travel-secondary {
+  background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.1) 100%);
+  color: white;
+  font-weight: 600;
+  padding: 10px 24px;
+  border-radius: 50px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+}
+
+.btn-travel-secondary:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
+}
+
+/* サイコロアニメーション */
+.dice-container {
+  perspective: 1000px;
+}
+
+.dice-3d {
+  width: 100px;
+  height: 100px;
+  background: linear-gradient(145deg, #ffffff 0%, #e0e0e0 100%);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+  font-weight: bold;
+  color: #1a237e;
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.3),
+    inset 0 2px 0 rgba(255, 255, 255, 0.8),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.1);
+  transition: transform 0.1s ease;
+}
+
+.dice-rolling {
+  animation: dice-shake 0.1s infinite;
+}
+
+@keyframes dice-shake {
+  0% { transform: rotate(-5deg) scale(1.05); }
+  25% { transform: rotate(5deg) scale(0.95); }
+  50% { transform: rotate(-3deg) scale(1.02); }
+  75% { transform: rotate(3deg) scale(0.98); }
+  100% { transform: rotate(-5deg) scale(1.05); }
+}
+
+/* 飛行機アニメーション */
+.airplane-flying {
+  animation: airplane-float 2s ease-in-out infinite;
+}
+
+@keyframes airplane-float {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50% { transform: translateY(-8px) rotate(2deg); }
+}
+
+/* 目的地カード */
+.destination-card {
+  background: linear-gradient(180deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.05) 100%);
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 24px;
+  overflow: hidden;
+  transition: all 0.4s ease;
+}
+
+.destination-card:hover {
+  transform: scale(1.02);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.destination-card-header {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.3) 0%, rgba(255, 152, 0, 0.2) 100%);
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* プログレスバー（飛行経路） */
+.flight-progress {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  height: 12px;
+  overflow: hidden;
+  position: relative;
+}
+
+.flight-progress-bar {
+  background: linear-gradient(90deg, #00bcd4 0%, #4caf50 50%, #8bc34a 100%);
+  height: 100%;
+  border-radius: 20px;
+  transition: width 0.5s ease-out;
+  position: relative;
+}
+
+.flight-progress-bar::after {
+  content: '✈️';
+  position: absolute;
+  right: -10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 20px;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+}
+
+/* 感情ポイントバッジ */
+.emotion-badge {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  backdrop-filter: blur(10px);
+}
+
+.emotion-fun { background: linear-gradient(135deg, rgba(255, 152, 0, 0.8) 0%, rgba(255, 193, 7, 0.8) 100%); color: white; }
+.emotion-joy { background: linear-gradient(135deg, rgba(233, 30, 99, 0.8) 0%, rgba(255, 64, 129, 0.8) 100%); color: white; }
+.emotion-beauty { background: linear-gradient(135deg, rgba(156, 39, 176, 0.8) 0%, rgba(186, 104, 200, 0.8) 100%); color: white; }
+.emotion-wonder { background: linear-gradient(135deg, rgba(33, 150, 243, 0.8) 0%, rgba(100, 181, 246, 0.8) 100%); color: white; }
+.emotion-reflection { background: linear-gradient(135deg, rgba(76, 175, 80, 0.8) 0%, rgba(129, 199, 132, 0.8) 100%); color: white; }
+
+/* ルーレットアニメーション */
+.roulette-container {
+  perspective: 1000px;
+}
+
+.roulette-spinning {
+  animation: roulette-spin 0.1s linear infinite;
+}
+
+@keyframes roulette-spin {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-60px); }
+}
+
+/* クイズカード */
+.quiz-card {
+  background: linear-gradient(180deg, rgba(103, 58, 183, 0.3) 0%, rgba(63, 81, 181, 0.3) 100%);
+  backdrop-filter: blur(20px);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 24px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.quiz-option {
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  padding: 16px 20px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.quiz-option:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 215, 0, 0.5);
+  transform: translateX(8px);
+}
+
+.quiz-option.selected {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.3) 0%, rgba(255, 152, 0, 0.3) 100%);
+  border-color: rgba(255, 215, 0, 0.8);
+}
+
+.quiz-option.correct {
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.4) 0%, rgba(129, 199, 132, 0.4) 100%);
+  border-color: rgba(76, 175, 80, 0.8);
+}
+
+.quiz-option.incorrect {
+  background: linear-gradient(135deg, rgba(244, 67, 54, 0.3) 0%, rgba(239, 83, 80, 0.3) 100%);
+  border-color: rgba(244, 67, 54, 0.6);
+}
+
+/* 空港情報パネル */
+.airport-panel {
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.4) 0%, rgba(0, 0, 0, 0.2) 100%);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 20px;
+}
+
+/* タイトルテキスト */
+.title-glow {
+  text-shadow:
+    0 0 20px rgba(255, 215, 0, 0.5),
+    0 0 40px rgba(255, 215, 0, 0.3),
+    0 0 60px rgba(255, 215, 0, 0.2);
+}
+
+/* メッセージバナー */
+.message-banner {
+  background: linear-gradient(90deg, rgba(255, 215, 0, 0.2) 0%, rgba(255, 152, 0, 0.2) 50%, rgba(255, 215, 0, 0.2) 100%);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 16px;
+  padding: 12px 24px;
+  animation: banner-glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes banner-glow {
+  0% { box-shadow: 0 0 10px rgba(255, 215, 0, 0.2); }
+  100% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.4); }
+}
+
+/* 到着アニメーション */
+.arrival-celebration {
+  animation: arrival-bounce 0.5s ease-out;
+}
+
+@keyframes arrival-bounce {
+  0% { transform: scale(0.5); opacity: 0; }
+  60% { transform: scale(1.1); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* マップコンテナ */
+.map-container {
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow:
+    0 10px 40px rgba(0, 0, 0, 0.4),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+/* スコアボード */
+.scoreboard {
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.5) 0%, rgba(0, 0, 0, 0.3) 100%);
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 16px;
+}
+
+/* フェードイン・アニメーション */
+.fade-in {
+  animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* スライドイン・アニメーション */
+.slide-in-right {
+  animation: slideInRight 0.4s ease-out;
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.slide-in-up {
+  animation: slideInUp 0.4s ease-out;
+}
+
+@keyframes slideInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}

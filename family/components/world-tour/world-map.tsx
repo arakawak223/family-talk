@@ -5,6 +5,17 @@ import dynamic from "next/dynamic";
 import { Airport, TravelProgress } from "@/lib/types/world-tour";
 import { AIRPORTS } from "@/lib/data/airports";
 
+interface PlayerPosition {
+  playerId: string;
+  playerName: string;
+  avatarEmoji: string;
+  color: string;
+  airportCode?: string;
+  currentPosition?: { lat: number; lng: number };
+  isInFlight: boolean;
+  isCurrentPlayer: boolean;
+}
+
 interface WorldMapProps {
   currentAirport?: string;
   visitedAirports?: string[];
@@ -12,7 +23,7 @@ interface WorldMapProps {
   onAirportSelect?: (airportCode: string) => void;
   showFlightRoutes?: boolean;
   availableDestinations?: string[];
-  playerPositions?: { playerId: string; airportCode: string; color: string }[];
+  playerPositions?: PlayerPosition[];
   destinationAirport?: string;
   travelProgress?: TravelProgress;
   routePositions?: { lat: number; lng: number }[];
@@ -55,12 +66,14 @@ export function WorldMap({
   onAirportSelect,
   showFlightRoutes = false,
   availableDestinations = [],
+  playerPositions = [],
   destinationAirport,
   travelProgress,
   routePositions = [],
 }: WorldMapProps) {
   const [isClient, setIsClient] = useState(false);
   const [planeIcon, setPlaneIcon] = useState<L.DivIcon | null>(null);
+  const [playerIcons, setPlayerIcons] = useState<Map<string, L.DivIcon>>(new Map());
 
   useEffect(() => {
     setIsClient(true);
@@ -77,6 +90,58 @@ export function WorldMap({
       });
     }
   }, []);
+
+  // プレイヤーアイコンを作成
+  useEffect(() => {
+    if (typeof window !== "undefined" && playerPositions.length > 0) {
+      import("leaflet").then((L) => {
+        const icons = new Map<string, L.DivIcon>();
+        playerPositions.forEach((player) => {
+          const icon = L.divIcon({
+            html: `
+              <div class="player-bubble ${player.isCurrentPlayer ? 'current' : ''}" style="
+                position: relative;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+              ">
+                <div style="
+                  background: ${player.color};
+                  border: 3px solid white;
+                  border-radius: 50%;
+                  width: 36px;
+                  height: 36px;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  font-size: 20px;
+                  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                  ${player.isCurrentPlayer ? 'animation: pulse 1.5s infinite;' : ''}
+                ">${player.avatarEmoji}</div>
+                <div style="
+                  background: ${player.color};
+                  color: white;
+                  font-size: 10px;
+                  font-weight: bold;
+                  padding: 2px 6px;
+                  border-radius: 8px;
+                  margin-top: 2px;
+                  white-space: nowrap;
+                  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+                ">${player.playerName}</div>
+                ${player.isCurrentPlayer ? '<div style="position: absolute; top: -8px; right: -8px; font-size: 12px;">🎮</div>' : ''}
+              </div>
+            `,
+            className: "player-marker",
+            iconSize: [50, 60],
+            iconAnchor: [25, 55],
+          });
+          icons.set(player.playerId, icon);
+        });
+        setPlayerIcons(icons);
+      });
+    }
+  }, [playerPositions]);
 
   const getMarkerStyle = useCallback(
     (airport: Airport) => {
@@ -163,6 +228,20 @@ export function WorldMap({
         .plane-marker {
           background: transparent;
           border: none;
+        }
+        .player-marker {
+          background: transparent;
+          border: none;
+        }
+        @keyframes pulse {
+          0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+          }
+          50% {
+            transform: scale(1.1);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+          }
         }
       `}</style>
 
@@ -334,6 +413,52 @@ export function WorldMap({
             </Tooltip>
           </Marker>
         )}
+
+        {/* プレイヤー位置マーカー（吹き出し付き） */}
+        {playerPositions.map((player, index) => {
+          const playerIcon = playerIcons.get(player.playerId);
+          if (!playerIcon) return null;
+
+          // プレイヤーの位置を決定
+          let position: [number, number] | null = null;
+          if (player.isInFlight && player.currentPosition) {
+            position = [player.currentPosition.lat, player.currentPosition.lng];
+          } else if (player.airportCode) {
+            const airport = AIRPORTS.find(a => a.code === player.airportCode);
+            if (airport) {
+              // 複数プレイヤーが同じ空港にいる場合は少しずらす
+              const offset = index * 0.5;
+              position = [airport.coordinates.lat + offset, airport.coordinates.lng + offset];
+            }
+          }
+
+          if (!position) return null;
+
+          return (
+            <Marker
+              key={`player-${player.playerId}`}
+              position={position}
+              icon={playerIcon}
+              zIndexOffset={player.isCurrentPlayer ? 1000 : 100 + index}
+            >
+              <Tooltip direction="top" offset={[0, -60]} opacity={1}>
+                <div className="text-center">
+                  <div className="font-bold">{player.avatarEmoji} {player.playerName}</div>
+                  {player.isInFlight ? (
+                    <div className="text-xs text-sky-600">移動中 ✈️</div>
+                  ) : player.airportCode ? (
+                    <div className="text-xs text-gray-600">
+                      {AIRPORTS.find(a => a.code === player.airportCode)?.city}
+                    </div>
+                  ) : null}
+                  {player.isCurrentPlayer && (
+                    <div className="text-xs text-green-600 font-bold">🎮 現在のターン</div>
+                  )}
+                </div>
+              </Tooltip>
+            </Marker>
+          );
+        })}
       </MapContainer>
     </div>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { WorldMap } from "./world-map";
@@ -15,8 +15,9 @@ import { getSpotsByAirport } from "@/lib/data/tourist-spots";
 import { getRandomQuiz } from "@/lib/data/quiz-pool";
 import { getRandomQuestionOnly, getRandomMessageOnly, MessageQuestion } from "@/lib/data/message-questions";
 import { getRandomComedy, getComedyTypeLabel, getComedyTypeIcon, ComedyContent } from "@/lib/data/comedy-content";
-import { speakText, stopSpeaking } from "@/lib/speech";
+import { speakText, speakWithEmotion, stopSpeaking, type EmotionType } from "@/lib/speech";
 import { playBGM, stopBGM, type BGMScene } from "@/lib/audio/bgm-manager";
+import { playDiceStepSound } from "@/lib/audio/tone-generator";
 import { Player, PLAYER_COLORS } from "@/lib/game/player-manager";
 
 // ゲーム設定
@@ -190,7 +191,7 @@ export function GameBoard({ userId, gameConfig }: GameBoardProps) {
   } | null>(null);
 
   const [gamePhase, setGamePhase] = useState<
-    "idle" | "setting_destination" | "roulette" | "rolling" | "moving" | "arrived" | "visiting" | "quiz" | "message_event" | "comedy_event"
+    "idle" | "setting_destination" | "roulette" | "rolling" | "moving" | "arrived" | "visiting" | "quiz" | "message_event" | "comedy_event" | "spot_selection"
   >("idle");
   const [diceResult, setDiceResult] = useState<number | null>(null);
   const [selectedAirport, setSelectedAirport] = useState<string | null>(null);
@@ -206,6 +207,15 @@ export function GameBoard({ userId, gameConfig }: GameBoardProps) {
   const [currentComedyContent, setCurrentComedyContent] = useState<ComedyContent | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [activeBoosterTicket, setActiveBoosterTicket] = useState<string | null>(null); // 使用中のチケットID
+  const [showTicketTransfer, setShowTicketTransfer] = useState(false); // チケット譲渡モーダル
+  const [selectedTicketForTransfer, setSelectedTicketForTransfer] = useState<string | null>(null); // 譲渡対象チケットID
+
+  // 到着管理の状態
+  const [firstArrivalPlayerIndex, setFirstArrivalPlayerIndex] = useState<number | null>(null); // 最初に到着したプレイヤー
+  const [arrivedPlayers, setArrivedPlayers] = useState<number[]>([]); // 到着済みプレイヤーのインデックス
+  const [pendingSpotSelection, setPendingSpotSelection] = useState(false); // 名所・グルメ選択待ち
+  const [currentDestinationDistance, setCurrentDestinationDistance] = useState<number>(0); // 現在の目的地への距離
+  const [playerSelectedSpots, setPlayerSelectedSpots] = useState<Map<number, string[]>>(new Map()); // プレイヤーごとの選択済みスポット（空港コード単位）
 
   // 空路上のマス位置を計算
   const routePositions = useMemo(() => {
@@ -228,14 +238,16 @@ export function GameBoard({ userId, gameConfig }: GameBoardProps) {
     setMessage(isLast ? "🏁 最終目的地を決定！スタート地点に戻ります" : "🎰 目的地ルーレットを回そう！");
   }, [visitedDestinations.length, destinationCount]);
 
-  // ルーレットで目的地が選ばれた時（全プレイヤーに同じ目的地を設定）
+  // ルーレットで目的地が選ばれた時
+  // - 初回または全員到着後：全プレイヤーに新しい目的地を設定
+  // - 最初の到着者が先に進む場合：到着済みプレイヤーのみ新しい目的地を設定
   const handleDestinationSelected = useCallback((airport: Airport) => {
     stopBGM();
     setShowRoulette(false);
     setVisitedDestinations(prev => [...prev, airport.code]);
 
-    // 現在のプレイヤー（最初のプレイヤー）の位置から距離を計算
-    const currentPlayer = players[0]; // 最初のプレイヤーの位置を基準に
+    // 現在のプレイヤーの位置から距離を計算
+    const currentPlayer = players[currentPlayerIndex];
     const current = getAirportByCode(currentPlayer.currentAirport);
     const destination = getAirportByCode(airport.code);
     if (!current || !destination) return;
@@ -244,15 +256,20 @@ export function GameBoard({ userId, gameConfig }: GameBoardProps) {
     const totalSpaces = distanceToSpaces(distance);
     const routeSpaces = generateRouteSpaces(currentPlayer.currentAirport, airport.code, totalSpaces);
 
-    // 共通目的地を設定
+    // 共通目的地を更新
     setSharedDestination({
       airport: airport.code,
       totalSpaces,
       routeSpaces,
     });
 
-    // 全プレイヤーに目的地を設定
-    setPlayers(prevPlayers => prevPlayers.map(p => {
+    // プレイヤーに目的地を設定（到着済み or 初回のみ）
+    setPlayers(prevPlayers => prevPlayers.map((p, idx) => {
+      // まだ前の目的地に向かっているプレイヤーはそのまま
+      if (p.travelProgress && p.travelProgress.currentSpace < p.travelProgress.totalSpaces) {
+        return p;
+      }
+
       const playerCurrent = getAirportByCode(p.currentAirport);
       if (!playerCurrent) return p;
 
@@ -290,10 +307,17 @@ export function GameBoard({ userId, gameConfig }: GameBoardProps) {
       specialInfo = ` (${parts.join(', ')})`;
     }
 
+    // 到着状態をリセット（最初の到着者が先に進む場合も含む）
+    setFirstArrivalPlayerIndex(null);
+    setArrivedPlayers([]);
+    setPendingSpotSelection(false);
+    setCurrentDestinationDistance(distance);
+    setPlayerSelectedSpots(new Map()); // 新しい目的地なのでプレイヤーごとの選択もリセット
+
     setSelectedAirport(null);
     setGamePhase("idle");
-    setMessage(`🎯 全員の目的地: ${destination.city} (${totalSpaces}マス)${specialInfo} サイコロを振って進もう！`);
-  }, [players]);
+    setMessage(`🎯 次の目的地: ${destination.city} (${totalSpaces}マス)${specialInfo} サイコロを振って進もう！`);
+  }, [players, currentPlayerIndex]);
 
   // 目的地キャンセル（全プレイヤーの目的地をクリア）
   const cancelDestination = useCallback(() => {
@@ -344,6 +368,45 @@ export function GameBoard({ userId, gameConfig }: GameBoardProps) {
     setActiveBoosterTicket(null);
     setMessage("チケットの使用をキャンセルしました");
   }, []);
+
+  // チケット譲渡機能
+  const transferTicket = useCallback((ticketId: string, toPlayerIndex: number) => {
+    if (toPlayerIndex === currentPlayerIndex || toPlayerIndex < 0 || toPlayerIndex >= players.length) return;
+
+    const ticket = player.powerBoosterTickets.find(t => t.id === ticketId);
+    if (!ticket) return;
+
+    // 譲渡元からチケットを削除し、200ptを追加
+    // 譲渡先にチケットを追加
+    setPlayers(prevPlayers => prevPlayers.map((p, idx) => {
+      if (idx === currentPlayerIndex) {
+        // 譲渡元：チケット削除、200pt獲得
+        return {
+          ...p,
+          powerBoosterTickets: p.powerBoosterTickets.filter(t => t.id !== ticketId),
+          emotionPoints: {
+            ...p.emotionPoints,
+            total: p.emotionPoints.total + 200,
+            joy: p.emotionPoints.joy + 200,
+          },
+        };
+      } else if (idx === toPlayerIndex) {
+        // 譲渡先：チケット追加
+        return {
+          ...p,
+          powerBoosterTickets: [...p.powerBoosterTickets, ticket],
+        };
+      }
+      return p;
+    }));
+
+    const toPlayerName = players[toPlayerIndex].name;
+    const toPlayerEmoji = gameConfig?.players?.[toPlayerIndex]?.avatarEmoji || '👤';
+    setShowTicketTransfer(false);
+    setSelectedTicketForTransfer(null);
+    setMessage(`🎁 ${toPlayerEmoji} ${toPlayerName}さんにチケットを譲渡しました！感動ポイント +200pt`);
+    speakText(`${toPlayerName}さんにチケットを譲渡しました。感動ポイント200ポイント獲得！`, { rate: 0.95 });
+  }, [currentPlayerIndex, players, player.powerBoosterTickets, gameConfig?.players]);
 
   // サイコロを振る
   const rollDice = useCallback(() => {
@@ -399,22 +462,27 @@ export function GameBoard({ userId, gameConfig }: GameBoardProps) {
   }, [player.travelProgress, player.powerBoosterTickets, activeBoosterTicket, setPlayer]);
 
   // 移動を確定
-  const confirmMove = useCallback(() => {
+  const confirmMove = useCallback(async () => {
     if (!player.travelProgress || diceResult === null) return;
 
     const currentSpace = player.travelProgress.currentSpace;
     const totalSpaces = player.travelProgress.totalSpaces;
-    const newSpace = Math.min(currentSpace + diceResult, totalSpaces);
+    const actualMove = Math.min(diceResult, totalSpaces - currentSpace); // 実際に進むマス数
+    const newSpace = currentSpace + actualMove;
     const isArrived = newSpace >= totalSpaces;
 
     // 新しい位置を計算
-    const startAirport = getAirportByCode(player.travelProgress.startAirport);
+    const routeStartAirport = getAirportByCode(player.travelProgress.startAirport);
     const destAirport = getAirportByCode(player.travelProgress.finalDestination);
-    if (!startAirport || !destAirport) return;
+    if (!routeStartAirport || !destAirport) return;
+
+    // マス数に応じて「トン・トン・トン」効果音を再生
+    setMessage(`🎲 ${actualMove}マス進みます... トン♪`);
+    await playDiceStepSound(actualMove);
 
     const progress = newSpace / totalSpaces;
     const newPosition = interpolatePosition(
-      startAirport.coordinates,
+      routeStartAirport.coordinates,
       destAirport.coordinates,
       progress
     );
@@ -424,9 +492,19 @@ export function GameBoard({ userId, gameConfig }: GameBoardProps) {
       const destination = player.travelProgress.finalDestination;
       const destinationAirport = getAirportByCode(destination);
       const isNewAirport = !player.visitedAirports.includes(destination);
-      const bonusPoints = isNewAirport ? 100 : 50;
 
-      // 到着したプレイヤーの状態を更新し、全員の目的地をクリア
+      // 最初の到着者かどうか判定
+      const isFirstArrival = firstArrivalPlayerIndex === null;
+
+      // 距離に応じたボーナスポイント計算（最初の到着者のみ）
+      // 基本: 50pt + 距離ボーナス（1000kmごとに10pt、最大200pt）+ 新規空港ボーナス50pt
+      let arrivalBonus = 0;
+      if (isFirstArrival) {
+        const distanceBonus = Math.min(Math.floor(currentDestinationDistance / 1000) * 10, 200);
+        arrivalBonus = 50 + distanceBonus + (isNewAirport ? 50 : 0);
+      }
+
+      // 到着したプレイヤーの状態を更新（他のプレイヤーは現在地維持）
       setPlayers(prevPlayers => prevPlayers.map((p, idx) => {
         if (idx === currentPlayerIndex) {
           // 到着したプレイヤー
@@ -439,23 +517,22 @@ export function GameBoard({ userId, gameConfig }: GameBoardProps) {
             destinationAirport: undefined,
             travelProgress: undefined,
             turnsPlayed: p.turnsPlayed + 1,
-            emotionPoints: {
+            emotionPoints: isFirstArrival ? {
               ...p.emotionPoints,
-              total: p.emotionPoints.total + bonusPoints,
-              joy: p.emotionPoints.joy + bonusPoints,
-            },
+              total: p.emotionPoints.total + arrivalBonus,
+              joy: p.emotionPoints.joy + arrivalBonus,
+            } : p.emotionPoints,
           };
         }
-        // 他のプレイヤーも目的地をクリア（次の目的地を設定するため）
-        return {
-          ...p,
-          destinationAirport: undefined,
-          travelProgress: undefined,
-        };
+        // 他のプレイヤーはそのまま維持
+        return p;
       }));
 
-      // 共通目的地をクリア
-      setSharedDestination(null);
+      // 到着状態を更新
+      if (isFirstArrival) {
+        setFirstArrivalPlayerIndex(currentPlayerIndex);
+      }
+      setArrivedPlayers(prev => [...prev, currentPlayerIndex]);
 
       // 最終目的地に到着した場合はゲーム終了
       if (isFinalDestination) {
@@ -468,17 +545,43 @@ export function GameBoard({ userId, gameConfig }: GameBoardProps) {
         return;
       }
 
-      const spots = getSpotsByAirport(destination);
-      if (spots.length > 0) {
-        setGamePhase("visiting");
-        setMessage(`🎉 ${destinationAirport?.city}に到着！目的地ボーナス +${bonusPoints}pt！観光スポットを見てから次の目的地へ`);
+      // スタート地点でなければ名所・グルメ選択待ちフラグを立てる
+      const isAtStartAirport = destination === startAirport;
+
+      // ファンファーレと到着メッセージ
+      if (isFirstArrival) {
+        playBGM('arrival');
+        if (isAtStartAirport) {
+          setMessage(`🎉 ${destinationAirport?.city}に最初に到着！🏆 到着ボーナス +${arrivalBonus}pt！`);
+        } else {
+          setMessage(`🎉 ${destinationAirport?.city}に最初に到着！🏆 到着ボーナス +${arrivalBonus}pt！名所かグルメを1つ選ぼう！`);
+        }
       } else {
-        // 観光スポットなし：次の目的地を設定
-        setMessage(`🎉 ${destinationAirport?.city}に到着！目的地ボーナス +${bonusPoints}pt 次の目的地を決めよう！`);
-        setTimeout(() => {
-          setCurrentPlayerIndex(0); // 最初のプレイヤーに戻す
-          setGamePhase("idle");
-        }, 2000);
+        if (isAtStartAirport) {
+          setMessage(`✈️ ${destinationAirport?.city}に到着！`);
+        } else {
+          setMessage(`✈️ ${destinationAirport?.city}に到着！名所かグルメを1つ選んでポイントを獲得しよう！`);
+        }
+      }
+
+      // スタート地点でなければ名所・グルメ選択画面へ
+      if (!isAtStartAirport) {
+        setPendingSpotSelection(true);
+        setGamePhase("arrived");
+      } else {
+        // スタート地点の場合は次のプレイヤーへ or 次の目的地へ
+        const otherPlayersStillTraveling = players.some((p, idx) =>
+          idx !== currentPlayerIndex && p.travelProgress && p.travelProgress.currentSpace < p.travelProgress.totalSpaces
+        );
+        if (otherPlayersStillTraveling) {
+          setTimeout(() => nextPlayer(), 2000);
+        } else {
+          setSharedDestination(null);
+          setTimeout(() => {
+            setCurrentPlayerIndex(0);
+            setGamePhase("idle");
+          }, 2000);
+        }
       }
     } else {
       // 空路上を移動
@@ -514,11 +617,13 @@ export function GameBoard({ userId, gameConfig }: GameBoardProps) {
         const typeLabel = messageItem.type === 'question' ? '💬 ひと言しつもん' : '💌 あなたへのメッセージ';
         setMessage(`✉️ メッセージマスに止まりました！${typeLabel}`);
 
-        // 少し遅延してから音声読み上げ（絵文字は自動除去される）
+        // 少し遅延してから感情を込めて音声読み上げ
         setTimeout(() => {
           setIsSpeaking(true);
-          speakText(messageItem.content, {
-            rate: 0.95,
+          // メッセージタイプに応じて感情を設定
+          const emotion: EmotionType = messageItem.type === 'question' ? 'question' : 'warm';
+          speakWithEmotion(messageItem.content, {
+            emotion,
             onEnd: () => setIsSpeaking(false),
             onError: () => setIsSpeaking(false),
           });
@@ -532,7 +637,7 @@ export function GameBoard({ userId, gameConfig }: GameBoardProps) {
         const typeLabel = getComedyTypeLabel(comedyContent.type);
         setMessage(`😂 お笑いマスに止まりました！${getComedyTypeIcon(comedyContent.type)} ${typeLabel}`);
 
-        // 少し遅延してから音声読み上げ
+        // 少し遅延してから感情を込めて音声読み上げ
         setTimeout(() => {
           setIsSpeaking(true);
           // speakTextフィールドがあればそれを使う（昭和ギャグのリアル読み上げ）
@@ -541,8 +646,8 @@ export function GameBoard({ userId, gameConfig }: GameBoardProps) {
           if (comedyContent.type === 'boke_tsukkomi' && comedyContent.setup && comedyContent.boke && comedyContent.tsukkomi) {
             textToSpeak = `${comedyContent.setup}。${comedyContent.boke}。${comedyContent.tsukkomi}`;
           }
-          speakText(textToSpeak, {
-            rate: 0.9, // 少しゆっくりめに
+          speakWithEmotion(textToSpeak, {
+            emotion: 'funny',
             onEnd: () => setIsSpeaking(false),
             onError: () => setIsSpeaking(false),
           });
@@ -675,7 +780,88 @@ export function GameBoard({ userId, gameConfig }: GameBoardProps) {
     }, 1500);
   }, [nextPlayer, setPlayer]);
 
-  // 観光名所を訪問（各空港で1つのみ）
+  // 名所・グルメ選択完了後の次のステップ処理
+  const handleSpotSelectionComplete = useCallback(() => {
+    setPendingSpotSelection(false);
+
+    // 最初の到着者の場合：後続を待たずに次の目的地ルーレットへ
+    if (firstArrivalPlayerIndex === currentPlayerIndex) {
+      setTimeout(() => {
+        // このプレイヤーのターンで次の目的地を決める
+        setGamePhase("idle");
+        setMessage("🎯 次の目的地を決めよう！ルーレットを回してください");
+        // sharedDestinationはそのままにして、後続プレイヤーは引き続きそこへ向かう
+      }, 2000);
+      return;
+    }
+
+    // 後続の到着者の場合
+    // 最初の到着者が既に次の目的地を設定しているかチェック
+    // （sharedDestinationが更新されていて、自分の目的地と異なる場合）
+    const currentDestination = players[currentPlayerIndex]?.travelProgress?.finalDestination;
+    const nextDestinationAlreadySet = sharedDestination && sharedDestination.airport !== currentDestination;
+
+    if (nextDestinationAlreadySet) {
+      // 次の目的地が既に設定されている：このプレイヤーを次の目的地へ向かわせる
+      const destination = getAirportByCode(sharedDestination.airport);
+      const playerCurrent = getAirportByCode(players[currentPlayerIndex].currentAirport);
+
+      if (destination && playerCurrent) {
+        const playerDistance = calculateDistance(playerCurrent, destination);
+        const playerTotalSpaces = distanceToSpaces(playerDistance);
+        const playerRouteSpaces = generateRouteSpaces(players[currentPlayerIndex].currentAirport, sharedDestination.airport, playerTotalSpaces);
+
+        // このプレイヤーの目的地を更新
+        setPlayers(prevPlayers => prevPlayers.map((p, idx) => {
+          if (idx !== currentPlayerIndex) return p;
+
+          const travelProgress: TravelProgress = {
+            startAirport: p.currentAirport,
+            finalDestination: sharedDestination.airport,
+            totalDistance: playerDistance,
+            totalSpaces: playerTotalSpaces,
+            currentSpace: 0,
+            currentPosition: playerCurrent.coordinates,
+            routeSpaces: playerRouteSpaces,
+          };
+
+          return {
+            ...p,
+            destinationAirport: sharedDestination.airport,
+            travelProgress,
+          };
+        }));
+
+        setTimeout(() => {
+          setGamePhase("idle");
+          setMessage(`🎯 次の目的地: ${destination.city}へ向かおう！サイコロを振ってください`);
+        }, 2000);
+        return;
+      }
+    }
+
+    // 他のプレイヤーがまだ現在の目的地に向かっているかチェック
+    const otherPlayersStillTraveling = players.some((p, idx) =>
+      idx !== currentPlayerIndex && p.travelProgress && p.travelProgress.currentSpace < p.travelProgress.totalSpaces
+    );
+
+    if (otherPlayersStillTraveling) {
+      // 他のプレイヤーがまだ移動中：次のプレイヤーへ
+      setTimeout(() => nextPlayer(), 2000);
+    } else {
+      // 全員到着済み：共通目的地をクリアして次の目的地を設定
+      setSharedDestination(null);
+      setFirstArrivalPlayerIndex(null);
+      setArrivedPlayers([]);
+      setTimeout(() => {
+        setCurrentPlayerIndex(0);
+        setGamePhase("idle");
+        setMessage("次の目的地を決めよう！");
+      }, 2000);
+    }
+  }, [players, currentPlayerIndex, nextPlayer, firstArrivalPlayerIndex, sharedDestination]);
+
+  // 観光名所を訪問（各空港で各プレイヤーが1つのみ選択可能）
   const handleVisitAttraction = useCallback((
     airportCode: string,
     index: number,
@@ -684,13 +870,30 @@ export function GameBoard({ userId, gameConfig }: GameBoardProps) {
     category: EmotionCategory,
     isPowerSpot?: boolean
   ) => {
-    // この空港で既に観光名所を訪問済みかチェック
-    if (visitedAttractions.some(id => id.startsWith(`${airportCode}-attraction-`))) {
-      setMessage("この空港では既に観光名所を訪問済みです");
+    // 現在のプレイヤーがこの空港で既に選択済みかチェック
+    const playerSpots = playerSelectedSpots.get(currentPlayerIndex) || [];
+    if (playerSpots.includes(airportCode)) {
+      setMessage("この空港では既に選択済みです");
       return;
     }
+
+    // 既に他のプレイヤーに選ばれているスポットかチェック
     const attractionId = `${airportCode}-attraction-${index}`;
+    if (visitedAttractions.includes(attractionId)) {
+      setMessage("このスポットは既に他のプレイヤーが選択しています");
+      return;
+    }
+
+    // グローバルリストに追加（グレーアウト表示用）
     setVisitedAttractions((prev) => [...prev, attractionId]);
+
+    // プレイヤーごとの選択済みリストに追加
+    setPlayerSelectedSpots(prev => {
+      const newMap = new Map(prev);
+      const spots = newMap.get(currentPlayerIndex) || [];
+      newMap.set(currentPlayerIndex, [...spots, airportCode]);
+      return newMap;
+    });
 
     // パワースポットの場合、パワーブースター・チケットを付与
     if (isPowerSpot) {
@@ -727,22 +930,45 @@ export function GameBoard({ userId, gameConfig }: GameBoardProps) {
       }));
       setMessage(`🏛️ ${name}を訪問！ +${points}pt 獲得！`);
     }
-  }, [visitedAttractions, setPlayer]);
 
-  // ご当地グルメを味わう（各空港で1つのみ）
+    // 到着時の名所・グルメ選択待ち状態なら完了処理
+    if (pendingSpotSelection) {
+      handleSpotSelectionComplete();
+    }
+  }, [visitedAttractions, playerSelectedSpots, currentPlayerIndex, setPlayer, pendingSpotSelection, handleSpotSelectionComplete]);
+
+  // ご当地グルメを味わう（各空港で各プレイヤーが1つのみ選択可能）
   const handleVisitFood = useCallback((
     airportCode: string,
     index: number,
     name: string,
     points: number
   ) => {
-    // この空港で既にグルメを体験済みかチェック
-    if (visitedFoods.some(id => id.startsWith(`${airportCode}-food-`))) {
-      setMessage("この空港では既にグルメを体験済みです");
+    // 現在のプレイヤーがこの空港で既に選択済みかチェック
+    const playerSpots = playerSelectedSpots.get(currentPlayerIndex) || [];
+    if (playerSpots.includes(airportCode)) {
+      setMessage("この空港では既に選択済みです");
       return;
     }
+
+    // 既に他のプレイヤーに選ばれているグルメかチェック
     const foodId = `${airportCode}-food-${index}`;
+    if (visitedFoods.includes(foodId)) {
+      setMessage("このグルメは既に他のプレイヤーが選択しています");
+      return;
+    }
+
+    // グローバルリストに追加（グレーアウト表示用）
     setVisitedFoods((prev) => [...prev, foodId]);
+
+    // プレイヤーごとの選択済みリストに追加
+    setPlayerSelectedSpots(prev => {
+      const newMap = new Map(prev);
+      const spots = newMap.get(currentPlayerIndex) || [];
+      newMap.set(currentPlayerIndex, [...spots, airportCode]);
+      return newMap;
+    });
+
     setPlayer((prev) => ({
       ...prev,
       emotionPoints: {
@@ -752,7 +978,12 @@ export function GameBoard({ userId, gameConfig }: GameBoardProps) {
       },
     }));
     setMessage(`🍽️ ${name}を味わった！ +${points}pt 獲得！`);
-  }, [visitedFoods, setPlayer]);
+
+    // 到着時の名所・グルメ選択待ち状態なら完了処理
+    if (pendingSpotSelection) {
+      handleSpotSelectionComplete();
+    }
+  }, [visitedFoods, playerSelectedSpots, currentPlayerIndex, setPlayer, pendingSpotSelection, handleSpotSelectionComplete]);
 
   const currentAirport = getAirportByCode(player.currentAirport);
   const destinationAirportData = player.destinationAirport ? getAirportByCode(player.destinationAirport) : null;
@@ -810,17 +1041,8 @@ export function GameBoard({ userId, gameConfig }: GameBoardProps) {
     : '#3B82F6';
 
   return (
-    <div className="space-y-4">
-      {/* ルーレットモーダル */}
-      {showRoulette && (
-        <DestinationRoulette
-          excludeAirports={visitedDestinations}
-          onDestinationSelected={handleDestinationSelected}
-          isFinalDestination={isFinalDestination}
-          startAirport={startAirport}
-        />
-      )}
-
+    <div className="world-tour-bg min-h-screen p-4 md:p-6">
+      <div className="max-w-7xl mx-auto space-y-4 relative z-10">
       {/* ゲーム終了・結果発表画面 */}
       {gameCompleted && (
         <div className="fixed inset-0 bg-gradient-to-b from-purple-900/90 to-indigo-900/90 flex items-center justify-center z-50 p-4 overflow-y-auto">
@@ -831,7 +1053,7 @@ export function GameBoard({ userId, gameConfig }: GameBoardProps) {
               <h1 className="text-4xl font-bold text-yellow-300 drop-shadow-lg">
                 🏆 結果発表 🏆
               </h1>
-              <p className="text-white/80 mt-2">世界感動旅行ゲーム クリア！</p>
+              <p className="text-white/80 mt-2">ライトフライヤー21 〜感動・世界旅〜 クリア！</p>
             </div>
 
             {/* ランキング */}
@@ -1008,107 +1230,212 @@ export function GameBoard({ userId, gameConfig }: GameBoardProps) {
       )}
 
       {/* ヘッダー */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center justify-between">
-            <span>✈️ 感動・世界旅ゲーム</span>
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary">
-                目的地 {visitedDestinations.length - 1}/{destinationCount}
-              </Badge>
-              <Badge variant="outline" className="text-lg">
-                ターン {player.turnsPlayed + 1}
-              </Badge>
+      <div className="glass-card p-4 md:p-6 fade-in">
+        {/* タイトル行 */}
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-2xl md:text-3xl font-bold text-white title-glow flex items-center gap-2">
+            <span className="airplane-flying">✈️</span>
+            <div>
+              <span>ライトフライヤー21</span>
+              <span className="text-sm text-yellow-300 ml-2">感動・世界旅</span>
             </div>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            {/* 現在のプレイヤー（単独プレイ時も表示） */}
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ backgroundColor: `${currentPlayerColor}20` }}>
-              <span className="text-2xl">{gameConfig?.players?.[currentPlayerIndex]?.avatarEmoji || '👤'}</span>
-              <div>
-                <p className="text-sm text-gray-500">現在のプレイヤー</p>
-                <p className="font-bold" style={{ color: currentPlayerColor }}>{player.name}</p>
-              </div>
+          </h1>
+          <div className="flex items-center gap-3">
+            <div className="glass-card-light px-4 py-2 text-center">
+              <p className="text-white/60 text-xs">目的地</p>
+              <p className="text-yellow-400 font-bold text-lg">
+                {visitedDestinations.length - 1}/{destinationCount}
+              </p>
             </div>
-
-            {/* 現在地 */}
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">{isInFlight ? "✈️" : currentAirport?.icon}</span>
-              <div>
-                <p className="text-sm text-gray-500">現在地</p>
-                <p className="font-bold">
-                  {isInFlight ? (
-                    <span className="text-sky-600">
-                      {getAirportByCode(player.travelProgress?.startAirport || "")?.city}
-                      → {destinationAirportData?.city} 移動中
-                    </span>
-                  ) : (
-                    `${currentAirport?.city}, ${currentAirport?.country}`
-                  )}
-                </p>
-              </div>
+            <div className="glass-card-light px-4 py-2 text-center">
+              <p className="text-white/60 text-xs">ターン</p>
+              <p className="text-white font-bold text-lg">{player.turnsPlayed + 1}</p>
             </div>
+          </div>
+        </div>
 
-            {/* 目的地表示 */}
-            {destinationAirportData && player.travelProgress && (
-              <div className="flex items-center gap-2 p-2 bg-sky-50 rounded-lg border border-sky-200">
-                <span className="text-2xl">{destinationAirportData.icon}</span>
-                <div>
-                  <p className="text-sm text-sky-600">目的地</p>
-                  <p className="font-bold text-sky-800">
-                    {destinationAirportData.city}
-                  </p>
-                  <p className="text-xs text-sky-600">
-                    {player.travelProgress.currentSpace}/{player.travelProgress.totalSpaces}マス
-                  </p>
-                </div>
-              </div>
-            )}
+        {/* ステータス行 */}
+        <div className="flex flex-wrap items-center gap-4">
+          {/* 現在のプレイヤー */}
+          <div
+            className="player-card px-4 py-2 flex items-center gap-3"
+            style={{
+              borderColor: `${currentPlayerColor}60`,
+              background: `linear-gradient(135deg, ${currentPlayerColor}20 0%, transparent 100%)`
+            }}
+          >
+            <span className="text-3xl">{gameConfig?.players?.[currentPlayerIndex]?.avatarEmoji || '👤'}</span>
+            <div>
+              <p className="text-white/60 text-xs">プレイヤー</p>
+              <p className="font-bold text-white" style={{ textShadow: `0 0 10px ${currentPlayerColor}` }}>{player.name}</p>
+            </div>
+          </div>
 
-            {/* パワーブースター・チケット表示 */}
-            {player.powerBoosterTickets.length > 0 && (
-              <div className="flex items-center gap-2 p-2 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg border border-yellow-300">
-                <span className="text-2xl">🎫</span>
-                <div>
-                  <p className="text-sm text-yellow-700 font-medium">パワーブースター</p>
-                  <div className="flex gap-1">
-                    {player.powerBoosterTickets.map((ticket) => (
-                      <Badge key={ticket.id} className="bg-amber-500 text-white">
-                        {ticket.multiplier}倍
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* 感動ポイント */}
-            <EmotionPointsDisplay points={player.emotionPoints} />
-
-            {/* 訪問数 */}
-            <div className="text-center">
-              <p className="text-sm text-gray-500">訪問空港</p>
-              <p className="text-2xl font-bold">
-                {player.visitedAirports.length}/{AIRPORTS.length}
+          {/* 現在地 */}
+          <div className="glass-card-light px-4 py-2 flex items-center gap-3">
+            <span className={`text-3xl ${isInFlight ? 'airplane-flying' : ''}`}>
+              {isInFlight ? "✈️" : currentAirport?.icon}
+            </span>
+            <div>
+              <p className="text-white/60 text-xs">現在地</p>
+              <p className="font-bold text-white">
+                {isInFlight ? (
+                  <span className="text-cyan-300">
+                    {getAirportByCode(player.travelProgress?.startAirport || "")?.city}
+                    <span className="mx-2">→</span>
+                    {destinationAirportData?.city}
+                  </span>
+                ) : (
+                  `${currentAirport?.city}`
+                )}
               </p>
             </div>
           </div>
 
-          {/* メッセージ */}
-          {message && (
-            <div className="mt-4 p-3 bg-blue-50 rounded-lg text-center">
-              <p className="text-blue-800">{message}</p>
+          {/* 目的地表示 */}
+          {destinationAirportData && player.travelProgress && (
+            <div className="destination-card px-4 py-2 flex items-center gap-3">
+              <span className="text-3xl">{destinationAirportData.icon}</span>
+              <div>
+                <p className="text-yellow-400/80 text-xs">目的地</p>
+                <p className="font-bold text-yellow-300">{destinationAirportData.city}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="flight-progress w-20 h-2">
+                    <div
+                      className="flight-progress-bar h-full"
+                      style={{
+                        width: `${(player.travelProgress.currentSpace / player.travelProgress.totalSpaces) * 100}%`
+                      }}
+                    />
+                  </div>
+                  <span className="text-white/60 text-xs">
+                    {player.travelProgress.currentSpace}/{player.travelProgress.totalSpaces}
+                  </span>
+                </div>
+              </div>
             </div>
           )}
-        </CardContent>
-      </Card>
 
-      {/* メインマップ */}
-      <Card className="overflow-hidden">
-        <CardContent className="p-0">
-          <div className="h-[600px] w-full relative">
+          {/* パワーブースター・チケット */}
+          {player.powerBoosterTickets.length > 0 && (
+            <div className="glass-card-light px-4 py-2 flex items-center gap-3 border border-yellow-400/50">
+              <span className="text-2xl">🎫</span>
+              <div className="flex-1">
+                <p className="text-yellow-400 text-xs font-medium">パワーブースター</p>
+                <div className="flex gap-1 mt-1">
+                  {player.powerBoosterTickets.map((ticket) => (
+                    <span key={ticket.id} className="emotion-badge emotion-fun text-xs">
+                      {ticket.multiplier}倍
+                    </span>
+                  ))}
+                </div>
+              </div>
+              {/* 譲渡ボタン（2人以上でプレイ時のみ表示） */}
+              {players.length > 1 && (
+                <button
+                  className="text-xs px-2 py-1 bg-pink-500/30 text-pink-300 rounded hover:bg-pink-500/50 transition-colors"
+                  onClick={() => setShowTicketTransfer(!showTicketTransfer)}
+                >
+                  🎁 譲渡
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* チケット譲渡モーダル */}
+          {showTicketTransfer && player.powerBoosterTickets.length > 0 && players.length > 1 && (
+            <div className="glass-card p-4 border border-pink-400/50">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-white font-bold text-sm">🎁 チケットを譲渡</h4>
+                <button
+                  className="text-white/50 hover:text-white"
+                  onClick={() => {
+                    setShowTicketTransfer(false);
+                    setSelectedTicketForTransfer(null);
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+              <p className="text-white/60 text-xs mb-3">
+                チケットを譲渡すると<span className="text-yellow-400 font-bold">感動ポイント+200pt</span>獲得！
+              </p>
+
+              {/* チケット選択 */}
+              {!selectedTicketForTransfer ? (
+                <div className="space-y-2">
+                  <p className="text-white/80 text-xs">譲渡するチケットを選択:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {player.powerBoosterTickets.map((ticket) => (
+                      <button
+                        key={ticket.id}
+                        className="px-3 py-2 bg-yellow-500/20 border border-yellow-400/50 rounded-lg text-yellow-300 text-sm hover:bg-yellow-500/30 transition-colors"
+                        onClick={() => setSelectedTicketForTransfer(ticket.id)}
+                      >
+                        🎫 {ticket.multiplier}倍チケット
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-white/80 text-xs">譲渡先のプレイヤーを選択:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {players.map((p, idx) => {
+                      if (idx === currentPlayerIndex) return null;
+                      const playerEmoji = gameConfig?.players?.[idx]?.avatarEmoji || '👤';
+                      const playerColor = PLAYER_COLORS.find(c => c.id === (gameConfig?.players?.[idx]?.color || 'blue'))?.color || '#3B82F6';
+                      return (
+                        <button
+                          key={p.id}
+                          className="px-3 py-2 rounded-lg text-white text-sm hover:scale-105 transition-all"
+                          style={{ backgroundColor: `${playerColor}40`, border: `1px solid ${playerColor}80` }}
+                          onClick={() => {
+                            transferTicket(selectedTicketForTransfer, idx);
+                          }}
+                        >
+                          {playerEmoji} {p.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <button
+                    className="text-white/50 text-xs hover:text-white"
+                    onClick={() => setSelectedTicketForTransfer(null)}
+                  >
+                    ← 戻る
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 感動ポイント */}
+          <EmotionPointsDisplay points={player.emotionPoints} />
+
+          {/* 訪問数 */}
+          <div className="glass-card-light px-4 py-2 text-center">
+            <p className="text-white/60 text-xs">訪問空港</p>
+            <p className="text-2xl font-bold text-white">
+              {player.visitedAirports.length}
+              <span className="text-white/40 text-sm">/{AIRPORTS.length}</span>
+            </p>
+          </div>
+        </div>
+
+        {/* メッセージ */}
+        {message && (
+          <div className="message-banner mt-4 text-center">
+            <p className="text-yellow-100 font-medium">{message}</p>
+          </div>
+        )}
+      </div>
+
+      {/* メインマップとルーレット（横並び） */}
+      <div className={`grid gap-4 ${showRoulette ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
+        {/* マップコンテナ */}
+        <div className="map-container">
+          <div className={`w-full relative ${showRoulette ? 'h-[400px] md:h-[500px]' : 'h-[500px] md:h-[600px]'}`}>
             <WorldMap
               currentAirport={isInFlight ? undefined : player.currentAirport}
               visitedAirports={player.visitedAirports}
@@ -1124,22 +1451,50 @@ export function GameBoard({ userId, gameConfig }: GameBoardProps) {
                   ? AIRPORTS.filter(a => a.code !== player.currentAirport).map(a => a.code)
                   : []
               }
+              playerPositions={players.map((p, idx) => {
+                const playerColorId = gameConfig?.players?.[idx]?.color || 'blue';
+                const playerColor = PLAYER_COLORS.find(c => c.id === playerColorId)?.color || '#3B82F6';
+                const playerEmoji = gameConfig?.players?.[idx]?.avatarEmoji || '👤';
+                const isInFlightPlayer = p.travelProgress && p.travelProgress.currentSpace > 0;
+                return {
+                  playerId: p.id,
+                  playerName: p.name,
+                  avatarEmoji: playerEmoji,
+                  color: playerColor,
+                  airportCode: isInFlightPlayer ? undefined : p.currentAirport,
+                  currentPosition: isInFlightPlayer ? p.travelProgress?.currentPosition : undefined,
+                  isInFlight: !!isInFlightPlayer,
+                  isCurrentPlayer: idx === currentPlayerIndex,
+                };
+              })}
               destinationAirport={player.destinationAirport}
               travelProgress={player.travelProgress}
               routePositions={routePositions}
             />
           </div>
-        </CardContent>
-      </Card>
+        </div>
+
+        {/* ルーレットパネル（横並び表示） */}
+        {showRoulette && (
+          <div className="flex items-center justify-center">
+            <DestinationRoulette
+              excludeAirports={visitedDestinations}
+              onDestinationSelected={handleDestinationSelected}
+              isFinalDestination={isFinalDestination}
+              startAirport={startAirport}
+            />
+          </div>
+        )}
+      </div>
 
       {/* コントロールパネル */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* アクションパネル */}
-        <Card>
-          <CardHeader>
-            <CardTitle>🎮 アクション</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <div className="glass-card p-4 md:p-6">
+          <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+            <span className="text-2xl">🎮</span> アクション
+          </h2>
+          <div className="space-y-4">
             {/* 通常の待機状態 */}
             {gamePhase === "idle" && (
               <div className="space-y-3">
@@ -1277,8 +1632,13 @@ export function GameBoard({ userId, gameConfig }: GameBoardProps) {
                   </>
                 ) : (
                   <>
-                    {/* ルーレットボタンはプレイヤー1のみ、かつ共通目的地がない時のみ */}
-                    {currentPlayerIndex === 0 && !sharedDestination ? (
+                    {/* ルーレットボタン表示条件:
+                        - 初回：プレイヤー1（currentPlayerIndex === 0）かつ共通目的地がない
+                        - 到着後：最初の到着者（firstArrivalPlayerIndex === currentPlayerIndex）かつ
+                                 自分が目的地に到着済み（!player.travelProgress）
+                    */}
+                    {((currentPlayerIndex === 0 && !sharedDestination) ||
+                      (firstArrivalPlayerIndex === currentPlayerIndex && !player.travelProgress)) ? (
                       <>
                         <Button
                           onClick={startDestinationSelection}
@@ -1340,7 +1700,7 @@ export function GameBoard({ userId, gameConfig }: GameBoardProps) {
               </div>
             )}
 
-            {/* 観光スポット */}
+            {/* 観光スポット（旧visiting） */}
             {gamePhase === "visiting" && unvisitedSpots.length > 0 && (
               <div className="space-y-2">
                 <p className="font-semibold">🏛️ 観光スポット</p>
@@ -1361,6 +1721,29 @@ export function GameBoard({ userId, gameConfig }: GameBoardProps) {
                 <Button variant="ghost" className="w-full" onClick={skipVisit}>
                   スキップして次へ
                 </Button>
+              </div>
+            )}
+
+            {/* 目的地到着・名所グルメ選択 */}
+            {gamePhase === "arrived" && pendingSpotSelection && (
+              <div className="space-y-4">
+                <div className="p-4 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-lg border-2 border-emerald-400">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-3xl">🎉</span>
+                    <div>
+                      <p className="font-bold text-emerald-800">目的地に到着！</p>
+                      <p className="text-sm text-emerald-600">
+                        {currentAirport?.city}の名所かグルメを1つ選んでください
+                      </p>
+                    </div>
+                  </div>
+                  <div className="p-3 bg-white/60 rounded-lg">
+                    <p className="text-sm text-gray-600 flex items-center gap-2">
+                      <span>👇</span>
+                      <span>下の「空港情報パネル」から選択してください</span>
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -1631,25 +2014,25 @@ export function GameBoard({ userId, gameConfig }: GameBoardProps) {
                 </div>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* 空港情報パネル */}
         <AirportPanel
-          airport={selectedAirport || player.destinationAirport || player.currentAirport}
-          isCurrentLocation={!selectedAirport && !player.destinationAirport}
+          airport={selectedAirport || player.currentAirport}
+          isCurrentLocation={!selectedAirport}
           nearbySpots={
             selectedAirport
               ? getSpotsByAirport(selectedAirport)
-              : player.destinationAirport
-              ? getSpotsByAirport(player.destinationAirport)
               : nearbySpots
           }
           visitedAttractions={visitedAttractions}
           visitedFoods={visitedFoods}
           onVisitAttraction={handleVisitAttraction}
           onVisitFood={handleVisitFood}
-          canInteract={!selectedAirport && !player.destinationAirport && !isInFlight}
+          canInteract={gamePhase === "arrived" && pendingSpotSelection && !selectedAirport}
+          isStartAirport={(selectedAirport || player.currentAirport) === startAirport}
+          hasPlayerSelectedHere={(playerSelectedSpots.get(currentPlayerIndex) || []).includes(selectedAirport || player.currentAirport)}
         />
       </div>
 
@@ -1665,6 +2048,7 @@ export function GameBoard({ userId, gameConfig }: GameBoardProps) {
           }}
         />
       )}
+      </div>
     </div>
   );
 }
