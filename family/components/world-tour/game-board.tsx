@@ -307,8 +307,9 @@ export function GameBoard({ userId, gameConfig }: GameBoardProps) {
       specialInfo = ` (${parts.join(', ')})`;
     }
 
-    // 到着状態をリセット（最初の到着者が先に進む場合も含む）
-    setFirstArrivalPlayerIndex(null);
+    // 到着状態をリセット（新しい目的地への出発準備）
+    // firstArrivalPlayerIndexはリセットしない（後続プレイヤーの判定に必要）
+    // 全員が次の目的地に向けて出発したらリセットする
     setArrivedPlayers([]);
     setPendingSpotSelection(false);
     setCurrentDestinationDistance(distance);
@@ -332,6 +333,66 @@ export function GameBoard({ userId, gameConfig }: GameBoardProps) {
     setGamePhase("idle");
     setMessage("目的地をキャンセルしました");
   }, []);
+
+  // 後続プレイヤーを共通目的地に向かわせる
+  const setPlayerToSharedDestination = useCallback(() => {
+    if (!sharedDestination) return;
+
+    const destination = getAirportByCode(sharedDestination.airport);
+    const playerCurrent = getAirportByCode(players[currentPlayerIndex].currentAirport);
+
+    if (!destination || !playerCurrent) return;
+
+    const playerDistance = calculateDistance(playerCurrent, destination);
+    const playerTotalSpaces = distanceToSpaces(playerDistance);
+    const playerRouteSpaces = generateRouteSpaces(players[currentPlayerIndex].currentAirport, sharedDestination.airport, playerTotalSpaces);
+
+    // このプレイヤーの目的地を更新
+    setPlayers(prevPlayers => prevPlayers.map((p, idx) => {
+      if (idx !== currentPlayerIndex) return p;
+
+      const travelProgress: TravelProgress = {
+        startAirport: p.currentAirport,
+        finalDestination: sharedDestination.airport,
+        totalDistance: playerDistance,
+        totalSpaces: playerTotalSpaces,
+        currentSpace: 0,
+        currentPosition: playerCurrent.coordinates,
+        routeSpaces: playerRouteSpaces,
+      };
+
+      return {
+        ...p,
+        destinationAirport: sharedDestination.airport,
+        travelProgress,
+      };
+    }));
+
+    // ルートスペースの中で特殊マスがあるか確認
+    const quizCount = playerRouteSpaces.filter(s => s.type === 'quiz').length;
+    const messageCount = playerRouteSpaces.filter(s => s.type === 'message').length;
+    const comedyCount = playerRouteSpaces.filter(s => s.type === 'comedy').length;
+    let specialInfo = '';
+    if (quizCount > 0 || messageCount > 0 || comedyCount > 0) {
+      const parts = [];
+      if (quizCount > 0) parts.push(`❓クイズ×${quizCount}`);
+      if (messageCount > 0) parts.push(`✉️メッセージ×${messageCount}`);
+      if (comedyCount > 0) parts.push(`😂お笑い×${comedyCount}`);
+      specialInfo = ` (${parts.join(', ')})`;
+    }
+
+    // 全員が次の目的地に向けて出発したかチェック
+    // 現在のプレイヤーを除いて、全員がtravelProgressを持っているか確認
+    const allOthersHaveTravelProgress = players.every((p, idx) =>
+      idx === currentPlayerIndex || (p.travelProgress && p.travelProgress.currentSpace < p.travelProgress.totalSpaces)
+    );
+    if (allOthersHaveTravelProgress) {
+      // 全員出発したのでfirstArrivalPlayerIndexをリセット
+      setFirstArrivalPlayerIndex(null);
+    }
+
+    setMessage(`🎯 ${destination.city}へ出発！(${playerTotalSpaces}マス)${specialInfo} サイコロを振って進もう！`);
+  }, [sharedDestination, players, currentPlayerIndex]);
 
   // 次のプレイヤーへ
   const nextPlayer = useCallback(() => {
@@ -535,7 +596,9 @@ export function GameBoard({ userId, gameConfig }: GameBoardProps) {
       setArrivedPlayers(prev => [...prev, currentPlayerIndex]);
 
       // 最終目的地に到着した場合はゲーム終了
-      if (isFinalDestination) {
+      // ただし、実際に最終目的地（sharedDestinationの目的地）に到着した場合のみ
+      const isActualFinalDestination = isFinalDestination && sharedDestination && destination === sharedDestination.airport;
+      if (isActualFinalDestination) {
         playBGM('ending');
         setMessage(`🏆 ゲームクリア！${destinationAirport?.city}（スタート地点）に戻ってきました！お疲れさまでした！`);
         setTimeout(() => {
@@ -663,7 +726,7 @@ export function GameBoard({ userId, gameConfig }: GameBoardProps) {
     }
 
     setDiceResult(null);
-  }, [player.travelProgress, player.visitedAirports, diceResult, nextPlayer, currentPlayerIndex, setPlayer, isFinalDestination]);
+  }, [player.travelProgress, player.visitedAirports, diceResult, nextPlayer, currentPlayerIndex, setPlayer, isFinalDestination, sharedDestination]);
 
   // 観光スポット訪問
   const visitSpot = useCallback((spotId: string) => {
@@ -784,82 +847,20 @@ export function GameBoard({ userId, gameConfig }: GameBoardProps) {
   const handleSpotSelectionComplete = useCallback(() => {
     setPendingSpotSelection(false);
 
-    // 最初の到着者の場合：後続を待たずに次の目的地ルーレットへ
+    // 最初の到着者の場合：次の目的地ルーレットへ
     if (firstArrivalPlayerIndex === currentPlayerIndex) {
       setTimeout(() => {
         // このプレイヤーのターンで次の目的地を決める
         setGamePhase("idle");
         setMessage("🎯 次の目的地を決めよう！ルーレットを回してください");
-        // sharedDestinationはそのままにして、後続プレイヤーは引き続きそこへ向かう
       }, 2000);
       return;
     }
 
-    // 後続の到着者の場合
-    // 最初の到着者が既に次の目的地を設定しているかチェック
-    // （sharedDestinationが更新されていて、自分の目的地と異なる場合）
-    const currentDestination = players[currentPlayerIndex]?.travelProgress?.finalDestination;
-    const nextDestinationAlreadySet = sharedDestination && sharedDestination.airport !== currentDestination;
-
-    if (nextDestinationAlreadySet) {
-      // 次の目的地が既に設定されている：このプレイヤーを次の目的地へ向かわせる
-      const destination = getAirportByCode(sharedDestination.airport);
-      const playerCurrent = getAirportByCode(players[currentPlayerIndex].currentAirport);
-
-      if (destination && playerCurrent) {
-        const playerDistance = calculateDistance(playerCurrent, destination);
-        const playerTotalSpaces = distanceToSpaces(playerDistance);
-        const playerRouteSpaces = generateRouteSpaces(players[currentPlayerIndex].currentAirport, sharedDestination.airport, playerTotalSpaces);
-
-        // このプレイヤーの目的地を更新
-        setPlayers(prevPlayers => prevPlayers.map((p, idx) => {
-          if (idx !== currentPlayerIndex) return p;
-
-          const travelProgress: TravelProgress = {
-            startAirport: p.currentAirport,
-            finalDestination: sharedDestination.airport,
-            totalDistance: playerDistance,
-            totalSpaces: playerTotalSpaces,
-            currentSpace: 0,
-            currentPosition: playerCurrent.coordinates,
-            routeSpaces: playerRouteSpaces,
-          };
-
-          return {
-            ...p,
-            destinationAirport: sharedDestination.airport,
-            travelProgress,
-          };
-        }));
-
-        setTimeout(() => {
-          setGamePhase("idle");
-          setMessage(`🎯 次の目的地: ${destination.city}へ向かおう！サイコロを振ってください`);
-        }, 2000);
-        return;
-      }
-    }
-
-    // 他のプレイヤーがまだ現在の目的地に向かっているかチェック
-    const otherPlayersStillTraveling = players.some((p, idx) =>
-      idx !== currentPlayerIndex && p.travelProgress && p.travelProgress.currentSpace < p.travelProgress.totalSpaces
-    );
-
-    if (otherPlayersStillTraveling) {
-      // 他のプレイヤーがまだ移動中：次のプレイヤーへ
-      setTimeout(() => nextPlayer(), 2000);
-    } else {
-      // 全員到着済み：共通目的地をクリアして次の目的地を設定
-      setSharedDestination(null);
-      setFirstArrivalPlayerIndex(null);
-      setArrivedPlayers([]);
-      setTimeout(() => {
-        setCurrentPlayerIndex(0);
-        setGamePhase("idle");
-        setMessage("次の目的地を決めよう！");
-      }, 2000);
-    }
-  }, [players, currentPlayerIndex, nextPlayer, firstArrivalPlayerIndex, sharedDestination]);
+    // 後続の到着者の場合：次のプレイヤーへターンを渡す
+    // 次のターンで自動的に共通目的地に向かう（sharedDestinationがあれば）
+    setTimeout(() => nextPlayer(), 2000);
+  }, [currentPlayerIndex, nextPlayer, firstArrivalPlayerIndex]);
 
   // 観光名所を訪問（各空港で各プレイヤーが1つのみ選択可能）
   const handleVisitAttraction = useCallback((
@@ -1633,38 +1634,86 @@ export function GameBoard({ userId, gameConfig }: GameBoardProps) {
                 ) : (
                   <>
                     {/* ルーレットボタン表示条件:
-                        - 初回：プレイヤー1（currentPlayerIndex === 0）かつ共通目的地がない
-                        - 到着後：最初の到着者（firstArrivalPlayerIndex === currentPlayerIndex）かつ
-                                 自分が目的地に到着済み（!player.travelProgress）
+                        - ゲーム開始時：共通目的地がまだない場合（最初のプレイヤーのみ）
+                        - 到着後：最初の到着者（firstArrivalPlayerIndex === currentPlayerIndex）のみ
+                        ※ 後続プレイヤーは自動的に共通目的地に向かう（ルーレットは回さない）
                     */}
-                    {((currentPlayerIndex === 0 && !sharedDestination) ||
-                      (firstArrivalPlayerIndex === currentPlayerIndex && !player.travelProgress)) ? (
-                      <>
-                        <Button
-                          onClick={startDestinationSelection}
-                          size="lg"
-                          className="w-full text-xl py-6 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
-                        >
-                          🎰 目的地ルーレットを回す！
-                        </Button>
-                        <p className="text-sm text-gray-500 text-center">
-                          ルーレットで次の目的地を決めよう！
-                          {visitedDestinations.length >= destinationCount && (
-                            <span className="block text-amber-600 font-medium mt-1">
-                              🏁 次が最終目的地！スタート地点に戻ります
-                            </span>
-                          )}
-                        </p>
-                      </>
-                    ) : (
-                      <div className="p-4 bg-gray-100 rounded-lg text-center">
-                        <p className="text-gray-600">
-                          {sharedDestination
-                            ? `🎯 目的地: ${getAirportByCode(sharedDestination.airport)?.city} に向かおう！`
-                            : "プレイヤー1が目的地を決めるのを待っています..."}
-                        </p>
-                      </div>
-                    )}
+                    {(() => {
+                      // ゲーム開始時：共通目的地がなく、最初のプレイヤー
+                      const isInitialSetup = !sharedDestination && currentPlayerIndex === 0;
+
+                      // 最初の到着者がルーレットを回すべき状態
+                      const isFirstArrivalAndShouldSelectNext =
+                        firstArrivalPlayerIndex === currentPlayerIndex &&
+                        firstArrivalPlayerIndex !== null &&
+                        !player.travelProgress &&
+                        !pendingSpotSelection;
+
+                      // 後続プレイヤーが次の目的地に向かうべき状態
+                      // （sharedDestinationが現在地と異なる＝先行者が新しい目的地を設定済み）
+                      const hasNextDestination = sharedDestination && sharedDestination.airport !== player.currentAirport;
+
+                      // 後続プレイヤーが待機すべき状態
+                      // （最初の到着者ではなく、まだ次の目的地が設定されていない）
+                      const isWaitingForFirstArrival =
+                        firstArrivalPlayerIndex !== null &&
+                        firstArrivalPlayerIndex !== currentPlayerIndex &&
+                        !player.travelProgress &&
+                        !hasNextDestination;
+
+                      if (isInitialSetup || isFirstArrivalAndShouldSelectNext) {
+                        return (
+                          <>
+                            <Button
+                              onClick={startDestinationSelection}
+                              size="lg"
+                              className="w-full text-xl py-6 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                            >
+                              🎰 目的地ルーレットを回す！
+                            </Button>
+                            <p className="text-sm text-gray-500 text-center">
+                              ルーレットで次の目的地を決めよう！
+                              {visitedDestinations.length >= destinationCount && (
+                                <span className="block text-amber-600 font-medium mt-1">
+                                  🏁 次が最終目的地！スタート地点に戻ります
+                                </span>
+                              )}
+                            </p>
+                          </>
+                        );
+                      } else if (hasNextDestination) {
+                        return (
+                          <div className="space-y-3">
+                            <Button
+                              onClick={setPlayerToSharedDestination}
+                              size="lg"
+                              className="w-full text-xl py-6 bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-700 hover:to-blue-700"
+                            >
+                              🎯 {getAirportByCode(sharedDestination.airport)?.city} に向かう！
+                            </Button>
+                            <p className="text-sm text-gray-500 text-center">
+                              先行プレイヤーが決めた目的地に向かいます
+                            </p>
+                          </div>
+                        );
+                      } else if (isWaitingForFirstArrival) {
+                        return (
+                          <div className="p-4 bg-gray-100 rounded-lg text-center">
+                            <p className="text-gray-600">
+                              先行プレイヤーが次の目的地を決めるのを待っています...
+                            </p>
+                          </div>
+                        );
+                      } else {
+                        return (
+                          <div className="p-4 bg-gray-100 rounded-lg text-center">
+                            <p className="text-gray-600">
+                              目的地を設定してください
+                            </p>
+                          </div>
+                        );
+                      }
+                    })()}
                   </>
                 )}
               </div>

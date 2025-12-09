@@ -54,8 +54,7 @@ export function WorldTourContent({
               </Link>
               <h1 className="text-xl font-bold flex items-center gap-2">
                 <span>✈️</span>
-                <span>ライトフライヤー21</span>
-                <span className="text-sm text-gray-500">感動・世界旅</span>
+                <span>感動・世界旅ゲーム「ライトフライヤー２１」</span>
               </h1>
             </div>
           </div>
@@ -107,7 +106,7 @@ export function WorldTourContent({
       {/* フッター */}
       <footer className="bg-white/50 border-t py-4 mt-8">
         <div className="container mx-auto px-4 text-center text-sm text-gray-500">
-          <p>🌍 ライトフライヤー21 〜感動・世界旅〜 - クイズに答え、名所を巡り、家族とメッセージを交換しよう！</p>
+          <p>🌍 感動・世界旅ゲーム「ライトフライヤー２１」 - クイズに答え、名所を巡り、家族とメッセージを交換しよう！</p>
           <p className="text-xs mt-1">🏛️ 50空港 • ❓ クイズマス • ✉️ メッセージマス • 😂 お笑いマス</p>
         </div>
       </footer>
